@@ -3,15 +3,15 @@ import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -53,6 +53,9 @@ const COLORS = [
 export default function CourseModal({ visible, onClose, onSave, courseToEdit }: CourseModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [reserving, setReserving] = useState(false);
+  const [selectedTicketType, setSelectedTicketType] = useState<any>(null);
+  const [reservationModalVisible, setReservationModalVisible] = useState(false);
 
   const [title, setTitle] = useState(courseToEdit?.title || '');
   const [professor, setProfessor] = useState(courseToEdit?.professor || '');

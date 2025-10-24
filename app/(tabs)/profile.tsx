@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -15,10 +16,10 @@ export default function ProfileScreen() {
   const [dailySummary, setDailySummary] = useState(true);
 
   const user = {
-    name: 'Marco Bellini',
-    email: 'marco.bellini@edu.fr',
-    school: 'Sciences Po Paris',
-    level: 'M1 Marketing Digital',
+    name: 'Marco Di Candido',
+    email: 'marco.di-candido@assas-universite.org',
+    school: 'Université Paris Panthéon-Assas',
+    level: 'L1 Eco Gestion',
     avatar: 'M',
     joinDate: 'Septembre 2024',
   };
@@ -199,6 +200,28 @@ export default function ProfileScreen() {
               </View>
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                 <Polyline points="9 18 15 12 9 6" stroke="rgba(255,255,255,0.4)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
+              </Svg>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.7}
+              onPress={() => {
+                console.log('Navigation vers my-events');
+                router.push('/my-events');
+              }}
+>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: 'rgba(124, 72, 19, 0.2)' }]}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Rect x={2} y={7} width={20} height={14} rx={2} stroke="#b57c26ff" strokeWidth={2}/>
+                  <Path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" stroke="#b57c26ff" strokeWidth={2}/>
+                </Svg>
+              </View>
+              <Text style={styles.menuItemText}>Mes événements</Text>
+            </View>
+            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+              <Polyline points="9 18 15 12 9 6" stroke="rgba(255,255,255,0.4)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
               </Svg>
             </TouchableOpacity>
 

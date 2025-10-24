@@ -408,18 +408,26 @@ export default function SocialScreen() {
                         </View>
                       </View>
 
-                      <TouchableOpacity style={styles.ticketButton} activeOpacity={0.8}>
-                        <LinearGradient
-                          colors={['#7566d9', '#5b4fc9']}
-                          style={styles.ticketButtonGradient}
-                          start={{x: 0, y: 0}}
-                          end={{x: 1, y: 0}}
-                        >
-                          <Text style={styles.ticketButtonText}>
-                            {event.is_free ? 'Réserver (Gratuit)' : `Réserver (${event.price}€)`}
-                          </Text>
-                        </LinearGradient>
-                      </TouchableOpacity>
+                      <TouchableOpacity 
+  style={styles.ticketButton} 
+  activeOpacity={0.8}
+  onPress={(e) => {
+    e.stopPropagation(); // Empêche d'ouvrir le modal détail
+    setSelectedEvent(event);
+    setEventModalVisible(true);
+  }}
+>
+  <LinearGradient
+    colors={['#7566d9', '#5b4fc9']}
+    style={styles.ticketButtonGradient}
+    start={{x: 0, y: 0}}
+    end={{x: 1, y: 0}}
+  >
+    <Text style={styles.ticketButtonText}>
+      Voir les billets
+    </Text>
+  </LinearGradient>
+</TouchableOpacity>
                     </View>
                   </View>
                 </TouchableOpacity>

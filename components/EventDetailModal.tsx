@@ -1,16 +1,17 @@
+import ReservationModal from '@/components/ReservationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
@@ -31,6 +32,8 @@ export default function EventDetailModal({
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [reserving, setReserving] = useState(false);
+  const [selectedTicketType, setSelectedTicketType] = useState<any>(null);
+  const [reservationModalVisible, setReservationModalVisible] = useState(false);
 
   useEffect(() => {
     if (visible && event) {
@@ -57,77 +60,20 @@ export default function EventDetailModal({
     }
   };
 
-  const handleReserve = async (ticketType: any) => {
-    if (!user) {
-      Alert.alert('Connexion requise', 'Connecte-toi pour réserver un billet');
-      return;
-    }
+  const handleReserve = (ticketType: any) => {
+  if (!user) {
+    Alert.alert('Connexion requise', 'Connecte-toi pour réserver un billet');
+    return;
+  }
 
-    if (ticketType.available <= 0) {
-      Alert.alert('Complet', 'Ce tarif est complet');
-      return;
-    }
+  if (ticketType.available <= 0) {
+    Alert.alert('Complet', 'Ce tarif est complet');
+    return;
+  }
 
-    setReserving(true);
-
-    // Pour l'instant on crée juste la réservation sans paiement
-    // On intégrera Stripe après
-    const qrCode = `MOZAI-${event.id}-${user.id}-${Date.now()}`;
-
-    const { data, error } = await supabase
-      .from('event_registrations')
-      .insert([
-        {
-          user_id: user.id,
-          event_id: event.id,
-          ticket_type_id: ticketType.id,
-          amount_paid: ticketType.price,
-          qr_code: qrCode,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      setReserving(false);
-      if (error.code === '23505') {
-        Alert.alert('Déjà réservé', 'Tu as déjà réservé un billet pour cet événement');
-      } else {
-        Alert.alert('Erreur', error.message);
-      }
-      return;
-    }
-
-    // Décrémenter le nombre de places disponibles
-    await supabase
-      .from('event_ticket_types')
-      .update({ available: ticketType.available - 1 })
-      .eq('id', ticketType.id);
-
-    // Incrémenter le nombre de participants
-    await supabase
-      .from('events')
-      .update({ participants_count: event.participants_count + 1 })
-      .eq('id', event.id);
-
-    setReserving(false);
-
-    Alert.alert(
-      'Réservation confirmée ! 🎉',
-      ticketType.price > 0
-        ? `Tu as réservé ton billet pour ${ticketType.price}€. Tu recevras un email de confirmation.`
-        : 'Tu as réservé ton billet gratuit. Tu recevras un email de confirmation.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            onClose();
-            if (onReserve) onReserve();
-          },
-        },
-      ]
-    );
-  };
+  setSelectedTicketType(ticketType);
+  setReservationModalVisible(true);
+};
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -188,7 +134,20 @@ export default function EventDetailModal({
 
           {/* Titre */}
           <View style={styles.section}>
-            <Text style={styles.eventTitle}>{event.title}</Text>
+            <View>
+  <Text style={styles.eventTitle}>{event.title}</Text>
+  {event.is_cancelled && (
+    <View style={styles.cancelledAlert}>
+      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+        <Circle cx={12} cy={12} r={10} stroke="#ef4444" strokeWidth={2}/>
+        <Path d="M15 9l-6 6M9 9l6 6" stroke="#ef4444" strokeWidth={2} strokeLinecap="round"/>
+      </Svg>
+      <Text style={styles.cancelledAlertText}>
+        Cet événement a été annulé
+      </Text>
+    </View>
+  )}
+</View>
             
             {/* Organisateur */}
             <View style={styles.organizer}>
@@ -365,6 +324,19 @@ export default function EventDetailModal({
           <View style={{ height: 40 }} />
         </ScrollView>
       </LinearGradient>
+      <ReservationModal
+        visible={reservationModalVisible}
+        event={event}
+        ticketType={selectedTicketType}
+        onClose={() => {
+          setReservationModalVisible(false);
+          setSelectedTicketType(null);
+        }}
+        onSuccess={() => {
+          loadTicketTypes();
+          if (onReserve) onReserve();
+        }}
+      />
     </Modal>
   );
 }
@@ -568,5 +540,23 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     marginTop: 20,
+  },
+  cancelledAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    marginTop: 12,
+  },
+  cancelledAlertText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ef4444',
+    flex: 1,
   },
 });
