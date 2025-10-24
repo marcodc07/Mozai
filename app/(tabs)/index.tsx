@@ -1,3 +1,4 @@
+import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -166,6 +167,7 @@ function ScanFAB() {
 }
 
 export default function HomeScreen() {
+  const { signOut } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -453,6 +455,26 @@ export default function HomeScreen() {
 
         <ScanFAB />
       </LinearGradient>
+      {/* Bouton déconnexion temporaire */}
+<TouchableOpacity
+  style={{
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  }}
+  onPress={async () => {
+    await signOut();
+  }}
+  activeOpacity={0.7}
+>
+  <Text style={{ color: '#ffffff', fontWeight: '600' }}>
+    Déconnexion
+  </Text>
+</TouchableOpacity>
     </View>
   );
 }
