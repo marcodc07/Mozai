@@ -22,17 +22,26 @@ interface PostDetailModalProps {
   visible: boolean;
   post: any;
   association: any;
+  isLiked: boolean;
   onClose: () => void;
-  onUpdate: () => void;
+  onToggleLike: (postId: string) => void;
+  onCommentAdded: () => void;
 }
 
-export default function PostDetailModal({ visible, post, association, onClose, onUpdate }: PostDetailModalProps) {
+export default function PostDetailModal({
+  visible,
+  post,
+  association,
+  isLiked,
+  onClose,
+  onToggleLike,
+  onCommentAdded,
+}: PostDetailModalProps) {
   const { user } = useAuth();
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [localLikesCount, setLocalLikesCount] = useState(0);
 
   // Animation pour le like
   const likeScale = new Animated.Value(1);
@@ -40,10 +49,15 @@ export default function PostDetailModal({ visible, post, association, onClose, o
   useEffect(() => {
     if (visible && post) {
       loadComments();
-      checkIfLiked();
-      setLikesCount(post.likes_count || 0);
+      setLocalLikesCount(post.likes_count || 0);
     }
   }, [visible, post]);
+
+  useEffect(() => {
+    if (post) {
+      setLocalLikesCount(post.likes_count || 0);
+    }
+  }, [post?.likes_count]);
 
   const loadComments = async () => {
     if (!post) return;
@@ -60,20 +74,7 @@ export default function PostDetailModal({ visible, post, association, onClose, o
     setComments(data || []);
   };
 
-  const checkIfLiked = async () => {
-    if (!user || !post) return;
-
-    const { data } = await supabase
-      .from('post_likes')
-      .select('id')
-      .eq('post_id', post.id)
-      .eq('user_id', user.id)
-      .single();
-
-    setIsLiked(!!data);
-  };
-
-  const toggleLike = async () => {
+  const handleToggleLike = () => {
     if (!user) {
       Alert.alert('Erreur', 'Vous devez être connecté pour liker');
       return;
@@ -85,25 +86,11 @@ export default function PostDetailModal({ visible, post, association, onClose, o
       Animated.timing(likeScale, { toValue: 1, duration: 150, useNativeDriver: true }),
     ]).start();
 
-    // Optimistic update
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
+    // Update local count
+    setLocalLikesCount(prev => isLiked ? prev - 1 : prev + 1);
 
-    // Database update
-    if (newLikedState) {
-      await supabase
-        .from('post_likes')
-        .insert([{ post_id: post.id, user_id: user.id }]);
-    } else {
-      await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', post.id)
-        .eq('user_id', user.id);
-    }
-
-    onUpdate();
+    // Call parent function
+    onToggleLike(post.id);
   };
 
   const addComment = async () => {
@@ -130,7 +117,7 @@ export default function PostDetailModal({ visible, post, association, onClose, o
     } else {
       setNewComment('');
       await loadComments();
-      onUpdate();
+      onCommentAdded();
     }
 
     setLoading(false);
@@ -190,7 +177,7 @@ export default function PostDetailModal({ visible, post, association, onClose, o
 
               {/* Actions */}
               <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.actionButton} onPress={toggleLike}>
+                <TouchableOpacity style={styles.actionButton} onPress={handleToggleLike}>
                   <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                     <Svg width={24} height={24} viewBox="0 0 24 24" fill={isLiked ? '#7566d9' : 'none'}>
                       <Path
@@ -201,7 +188,7 @@ export default function PostDetailModal({ visible, post, association, onClose, o
                     </Svg>
                   </Animated.View>
                   <Text style={[styles.actionText, isLiked && styles.actionTextLiked]}>
-                    {likesCount}
+                    {localLikesCount}
                   </Text>
                 </TouchableOpacity>
 
@@ -246,7 +233,7 @@ export default function PostDetailModal({ visible, post, association, onClose, o
               )}
 
               {/* Espace pour éviter que le clavier cache le dernier commentaire */}
-              <View style={{ height: 100 }} />
+              <View style={{ height: 120 }} />
             </View>
           </ScrollView>
 

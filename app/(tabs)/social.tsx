@@ -1,3 +1,4 @@
+import CreateAssociationModal from '@/components/CreateAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +23,7 @@ export default function SocialScreen() {
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
+  const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
 
   // Charger les événements
   const loadEvents = async () => {
@@ -223,8 +225,24 @@ export default function SocialScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Social</Text>
-        </View>
+  <Text style={styles.headerTitle}>Social</Text>
+  
+  {/* Bouton Créer Association - Visible uniquement pour les admins */}
+  {profile?.is_admin && (
+    <TouchableOpacity
+      style={styles.createAssociationButton}
+      onPress={() => setCreateAssociationModalVisible(true)}
+      activeOpacity={0.8}
+    >
+      <LinearGradient colors={['#7566d9', '#5b4fc9']} style={styles.createAssociationButtonGradient}>
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+          <Path d="M12 5v14M5 12h14" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+        <Text style={styles.createAssociationButtonText}>Créer</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  )}
+</View>
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -598,6 +616,15 @@ export default function SocialScreen() {
             </View>
           )}
         </ScrollView>
+        {/* Modal Créer Association */}
+<CreateAssociationModal
+  visible={createAssociationModalVisible}
+  onClose={() => setCreateAssociationModalVisible(false)}
+  onSuccess={() => {
+    setCreateAssociationModalVisible(false);
+    loadData(); // Recharge les données pour afficher la nouvelle association
+  }}
+/>
       </LinearGradient>
        {/* Modal Détail du Billet */}
       <TicketDetailModal
@@ -634,10 +661,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingHorizontal: 20,
+  paddingTop: 60,
+  paddingBottom: 20,
+},
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
@@ -1054,5 +1084,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#7566d9',
+  },
+  // Bouton Créer Association
+  createAssociationButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  createAssociationButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  createAssociationButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
   },
 });

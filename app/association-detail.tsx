@@ -39,8 +39,8 @@ export default function AssociationDetailScreen() {
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
 
-  // Animation
   const followButtonScale = new Animated.Value(1);
 
   useEffect(() => {
@@ -51,14 +51,13 @@ export default function AssociationDetailScreen() {
     if (!id) return;
     setLoading(true);
 
-    const { data: assoData, error: assoError } = await supabase
+    const { data: assoData } = await supabase
       .from('associations')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (assoError) {
-      console.error('Erreur chargement association:', assoError);
+    if (!assoData) {
       setLoading(false);
       return;
     }
@@ -82,6 +81,19 @@ export default function AssociationDetailScreen() {
       .order('created_at', { ascending: false });
 
     setPosts(postsData || []);
+
+    // Charger les likes de l'utilisateur
+    if (user && postsData) {
+      const postIds = postsData.map(p => p.id);
+      const { data: likesData } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .in('post_id', postIds);
+
+      const likedPostIds = new Set((likesData || []).map(l => l.post_id));
+      setUserLikes(likedPostIds);
+    }
 
     const today = new Date().toISOString().split('T')[0];
     
@@ -155,22 +167,44 @@ export default function AssociationDetailScreen() {
     }
   };
 
-  const toggleLike = async (postId: string, currentlyLiked: boolean) => {
+  const toggleLike = async (postId: string, e?: any) => {
+    if (e) e.stopPropagation();
     if (!user) return;
 
-    // Optimistic update
+    const isCurrentlyLiked = userLikes.has(postId);
+    const newLikedState = !isCurrentlyLiked;
+
+    // Update local state immediately
+    const newUserLikes = new Set(userLikes);
+    if (newLikedState) {
+      newUserLikes.add(postId);
+    } else {
+      newUserLikes.delete(postId);
+    }
+    setUserLikes(newUserLikes);
+
+    // Update posts count immediately
     setPosts(prevPosts =>
       prevPosts.map(p =>
         p.id === postId
-          ? { ...p, likes_count: currentlyLiked ? p.likes_count - 1 : p.likes_count + 1 }
+          ? { ...p, likes_count: newLikedState ? p.likes_count + 1 : p.likes_count - 1 }
           : p
       )
     );
 
-    if (currentlyLiked) {
-      await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
-    } else {
+    setPinnedPosts(prevPosts =>
+      prevPosts.map(p =>
+        p.id === postId
+          ? { ...p, likes_count: newLikedState ? p.likes_count + 1 : p.likes_count - 1 }
+          : p
+      )
+    );
+
+    // Update database
+    if (newLikedState) {
       await supabase.from('post_likes').insert([{ post_id: postId, user_id: user.id }]);
+    } else {
+      await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id);
     }
   };
 
@@ -235,78 +269,79 @@ export default function AssociationDetailScreen() {
     );
   }
 
-  const renderPost = (post: any, isPinned: boolean = false) => (
-    <TouchableOpacity key={post.id} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
-      <View style={[styles.postCard, isPinned && styles.pinnedPostCard]}>
-        <LinearGradient
-          colors={isPinned ? ['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)'] : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)']}
-          style={styles.postGradient}
-        >
-          {isPinned && (
-            <View style={styles.pinnedBadge}>
-              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#7566d9" />
-              </Svg>
-              <Text style={styles.pinnedText}>Épinglé</Text>
-            </View>
-          )}
+  const renderPost = (post: any, isPinned: boolean = false) => {
+    const isLiked = userLikes.has(post.id);
 
-          <View style={styles.postHeader}>
-            <View style={styles.postAuthor}>
-              <Text style={styles.postEmoji}>{association.logo_emoji}</Text>
-              <View>
-                <Text style={styles.postAuthorName}>{association.name}</Text>
-                <Text style={styles.postDate}>{formatPostDate(post.created_at)}</Text>
+    return (
+      <TouchableOpacity key={post.id} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
+        <View style={[styles.postCard, isPinned && styles.pinnedPostCard]}>
+          <LinearGradient
+            colors={isPinned ? ['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)'] : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)']}
+            style={styles.postGradient}
+          >
+            {isPinned && (
+              <View style={styles.pinnedBadge}>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#7566d9" />
+                </Svg>
+                <Text style={styles.pinnedText}>Épinglé</Text>
+              </View>
+            )}
+
+            <View style={styles.postHeader}>
+              <View style={styles.postAuthor}>
+                <Text style={styles.postEmoji}>{association.logo_emoji}</Text>
+                <View>
+                  <Text style={styles.postAuthorName}>{association.name}</Text>
+                  <Text style={styles.postDate}>{formatPostDate(post.created_at)}</Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          <Text style={styles.postContent}>{post.content}</Text>
+            <Text style={styles.postContent}>{post.content}</Text>
 
-          {post.media_type === 'photo' && post.media_url && (
-            <Image source={{ uri: post.media_url }} style={styles.postImage} />
-          )}
+            {post.media_type === 'photo' && post.media_url && (
+              <Image source={{ uri: post.media_url }} style={styles.postImage} />
+            )}
 
-          {post.media_type === 'link' && (
-            <View style={styles.linkCard}>
-              <Text style={styles.linkTitle}>{post.link_title || 'Lien externe'}</Text>
-              <Text style={styles.linkUrl}>{post.link_url}</Text>
+            {post.media_type === 'link' && (
+              <View style={styles.linkCard}>
+                <Text style={styles.linkTitle}>{post.link_title || 'Lien externe'}</Text>
+                <Text style={styles.linkUrl}>{post.link_url}</Text>
+              </View>
+            )}
+
+            <View style={styles.postFooter}>
+              <TouchableOpacity
+                style={styles.postAction}
+                onPress={(e) => toggleLike(post.id, e)}
+              >
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill={isLiked ? '#7566d9' : 'none'}>
+                  <Path
+                    d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+                    stroke={isLiked ? '#7566d9' : 'rgba(255,255,255,0.6)'}
+                    strokeWidth={2}
+                  />
+                </Svg>
+                <Text style={[styles.postStatText, isLiked && styles.postStatTextLiked]}>{post.likes_count}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.postAction}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+                    stroke="rgba(255,255,255,0.6)"
+                    strokeWidth={2}
+                  />
+                </Svg>
+                <Text style={styles.postStatText}>{post.comments_count}</Text>
+              </View>
             </View>
-          )}
-
-          <View style={styles.postFooter}>
-            <TouchableOpacity
-              style={styles.postAction}
-              onPress={(e) => {
-                e.stopPropagation();
-                toggleLike(post.id, false);
-              }}
-            >
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-                  stroke="rgba(255,255,255,0.6)"
-                  strokeWidth={2}
-                />
-              </Svg>
-              <Text style={styles.postStatText}>{post.likes_count}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.postAction}>
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path
-                  d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
-                  stroke="rgba(255,255,255,0.6)"
-                  strokeWidth={2}
-                />
-              </Svg>
-              <Text style={styles.postStatText}>{post.comments_count}</Text>
-            </View>
-          </View>
-        </LinearGradient>
-      </View>
-    </TouchableOpacity>
-  );
+          </LinearGradient>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -790,11 +825,13 @@ export default function AssociationDetailScreen() {
         visible={postModalVisible}
         post={selectedPost}
         association={association}
+        isLiked={selectedPost ? userLikes.has(selectedPost.id) : false}
         onClose={() => {
           setPostModalVisible(false);
           setSelectedPost(null);
         }}
-        onUpdate={loadAssociationData}
+        onToggleLike={(postId) => toggleLike(postId)}
+        onCommentAdded={loadAssociationData}
       />
 
       <EventDetailModal
@@ -940,6 +977,7 @@ const styles = StyleSheet.create({
   postFooter: { flexDirection: 'row', gap: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.1)' },
   postAction: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   postStatText: { fontSize: 14, fontWeight: '600', color: 'rgba(255, 255, 255, 0.7)' },
+  postStatTextLiked: { color: '#7566d9' },
 
   mediaButton: {
     flexDirection: 'row',
@@ -1010,7 +1048,6 @@ const styles = StyleSheet.create({
 
   eventsTitle: { fontSize: 20, fontWeight: '800', color: '#ffffff', marginBottom: 16 },
   
-  // NOUVEAUX STYLES ÉVÉNEMENTS
   eventCardNew: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 24,
