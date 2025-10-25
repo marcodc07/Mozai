@@ -1,4 +1,5 @@
 import EventDetailModal from '@/components/EventDetailModal';
+import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,8 @@ export default function SocialScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventModalVisible, setEventModalVisible] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [ticketModalVisible, setTicketModalVisible] = useState(false);
 
   // Charger les événements
   const loadEvents = async () => {
@@ -291,6 +294,10 @@ export default function SocialScreen() {
                         key={ticket.id} 
                         style={styles.ticketPreviewCard}
                         activeOpacity={0.8}
+                        onPress={() => {
+      setSelectedTicket(ticket);
+      setTicketModalVisible(true);
+                        }}
                       >
                         <LinearGradient
                           colors={['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)']}
@@ -579,6 +586,15 @@ export default function SocialScreen() {
           )}
         </ScrollView>
       </LinearGradient>
+       {/* Modal Détail du Billet */}
+      <TicketDetailModal
+        visible={ticketModalVisible}
+        ticket={selectedTicket}
+        onClose={() => {
+          setTicketModalVisible(false);
+          setSelectedTicket(null);
+        }}
+      />
 
       {/* Modal Détail Événement */}
       <EventDetailModal
