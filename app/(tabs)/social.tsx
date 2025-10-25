@@ -3,6 +3,7 @@ import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -448,7 +449,12 @@ export default function SocialScreen() {
               <Text style={styles.sectionSubtitle}>Associations suivies</Text>
 
               {associations.filter(a => followedAssos.includes(a.id)).map((asso) => (
-                <View key={asso.id} style={styles.assoCard}>
+  <TouchableOpacity
+    key={asso.id}
+    activeOpacity={0.9}
+    onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+  >
+    <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
                   <View style={styles.assoLogo}>
                     <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
@@ -490,12 +496,18 @@ export default function SocialScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+                </TouchableOpacity>
               ))}
 
               <Text style={styles.sectionSubtitle}>Toutes les associations</Text>
 
               {associations.filter(a => !followedAssos.includes(a.id)).map((asso) => (
-                <View key={asso.id} style={styles.assoCard}>
+  <TouchableOpacity
+    key={asso.id}
+    activeOpacity={0.9}
+    onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+  >
+    <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
                   <View style={styles.assoLogo}>
                     <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
@@ -535,6 +547,7 @@ export default function SocialScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
