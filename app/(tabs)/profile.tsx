@@ -1,3 +1,5 @@
+import BecomeAdminModal from '@/components/BecomeAdminModal';
+import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +8,8 @@ import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } f
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 
 export default function ProfileScreen() {
+    const [becomeAdminModalVisible, setBecomeAdminModalVisible] = useState(false);
+  const { user, profile, signOut: authSignOut } = useAuth();
   const [isPremium, setIsPremium] = useState(true);
   const [notifPush, setNotifPush] = useState(true);
   const [notifEmail, setNotifEmail] = useState(true);
@@ -14,15 +18,6 @@ export default function ProfileScreen() {
   const [notifGroups, setNotifGroups] = useState(false);
   const [notifDeals, setNotifDeals] = useState(true);
   const [dailySummary, setDailySummary] = useState(true);
-
-  const user = {
-    name: 'Marco Di Candido',
-    email: 'marco.di-candido@assas-universite.org',
-    school: 'Université Paris Panthéon-Assas',
-    level: 'L1 Eco Gestion',
-    avatar: 'M',
-    joinDate: 'Septembre 2024',
-  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -90,6 +85,80 @@ export default function ProfileScreen() {
               <Text style={styles.userLevel}>{user.level}</Text>
             </View>
           </View>
+
+          {/* Section Admin */}
+{profile?.is_admin ? (
+  <View style={styles.adminSection}>
+    <LinearGradient
+      colors={['rgba(117, 102, 217, 0.2)', 'rgba(117, 102, 217, 0.1)']}
+      style={styles.adminBadge}
+    >
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+          stroke="#7566d9"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
+          stroke="#7566d9"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={styles.adminBadgeText}>Mode Admin</Text>
+      <View style={styles.adminStatusBadge}>
+        <Text style={styles.adminStatusText}>
+          {profile.admin_subscription_status === 'trial' ? 'Essai gratuit' :
+           profile.admin_subscription_status === 'active' ? 'Actif' : 'Expiré'}
+        </Text>
+      </View>
+    </LinearGradient>
+    <Text style={styles.adminDescription}>
+      Vous pouvez créer et gérer des associations
+    </Text>
+  </View>
+) : (
+  <TouchableOpacity
+    style={styles.becomeAdminButton}
+    onPress={() => setBecomeAdminModalVisible(true)}
+    activeOpacity={0.8}
+  >
+    <LinearGradient
+      colors={['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.08)']}
+      style={styles.becomeAdminButtonGradient}
+    >
+      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+          stroke="#7566d9"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"
+          stroke="#7566d9"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <View style={styles.becomeAdminContent}>
+        <Text style={styles.becomeAdminTitle}>Devenir Admin</Text>
+        <Text style={styles.becomeAdminSubtitle}>
+          Créez et gérez vos associations
+        </Text>
+      </View>
+      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+        <Path d="M9 18l6-6-6-6" stroke="#7566d9" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    </LinearGradient>
+  </TouchableOpacity>
+)}
 
           {/* Stats Cards */}
           <View style={styles.statsRow}>
@@ -545,6 +614,14 @@ export default function ProfileScreen() {
 
           <View style={{ height: 100 }} />
         </ScrollView>
+        {/* Modal Devenir Admin */}
+<BecomeAdminModal
+  visible={becomeAdminModalVisible}
+  onClose={() => setBecomeAdminModalVisible(false)}
+  onSuccess={() => {
+    setBecomeAdminModalVisible(false);
+  }}
+/>
       </LinearGradient>
     </View>
   );
@@ -889,5 +966,69 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(239, 68, 68, 0.6)',
     textDecorationLine: 'underline',
+  },
+  // Styles Admin
+  adminSection: {
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    marginBottom: 8,
+  },
+  adminBadgeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#7566d9',
+    flex: 1,
+  },
+  adminStatusBadge: {
+    backgroundColor: 'rgba(117, 102, 217, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  adminStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#7566d9',
+    textTransform: 'uppercase',
+  },
+  adminDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    paddingHorizontal: 4,
+  },
+
+  becomeAdminButton: {
+    marginTop: 20,
+    marginBottom: 10,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  becomeAdminButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  becomeAdminContent: {
+    flex: 1,
+  },
+  becomeAdminTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 2,
+  },
+  becomeAdminSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
