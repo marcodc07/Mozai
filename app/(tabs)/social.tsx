@@ -1,6 +1,5 @@
 import CreateAssociationModal from '@/components/CreateAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
-import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,7 +10,7 @@ import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, 
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
 export default function SocialScreen() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('events');
   const [followedAssos, setFollowedAssos] = useState<string[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -21,9 +20,25 @@ export default function SocialScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventModalVisible, setEventModalVisible] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadEvents();
+      loadAssociations();
+      loadFollowedAssos();
+      loadMyTickets();
+    }
+  }, [user]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadEvents();
+    await loadAssociations();
+    await loadFollowedAssos();
+    await loadMyTickets();
+    setRefreshing(false);
+  };
 
   // Charger les événements
   const loadEvents = async () => {
@@ -73,7 +88,7 @@ export default function SocialScreen() {
     let query = supabase
       .from('associations')
       .select('*')
-      .order('followers_count', { ascending: false });
+      .order('name', { ascending: true });
 
     if (profileData?.university_id) {
       query = query.eq('university_id', profileData.university_id);
@@ -88,8 +103,8 @@ export default function SocialScreen() {
     }
   };
 
-  // Charger les follows de l'utilisateur
-  const loadFollows = async () => {
+  // Charger les associations suivies
+  const loadFollowedAssos = async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -98,13 +113,13 @@ export default function SocialScreen() {
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('Erreur chargement follows:', error);
+      console.error('Erreur chargement associations suivies:', error);
     } else {
-      setFollowedAssos(data?.map(f => f.association_id) || []);
+      setFollowedAssos((data || []).map(item => item.association_id));
     }
   };
 
-  // Charger les billets de l'utilisateur
+  // Charger mes billets
   const loadMyTickets = async () => {
     if (!user) return;
 
@@ -112,16 +127,13 @@ export default function SocialScreen() {
       .from('event_registrations')
       .select(`
         *,
-        event:events(
-          *,
+        event:events(*,
           association:associations(name, logo_emoji)
         ),
         ticket_type:event_ticket_types(name, price)
       `)
       .eq('user_id', user.id)
-      .eq('status', 'valid')
-      .order('registered_at', { ascending: false })
-      .limit(2);
+      .order('registered_at', { ascending: false });
 
     if (error) {
       console.error('Erreur chargement billets:', error);
@@ -130,25 +142,9 @@ export default function SocialScreen() {
     }
   };
 
-  useEffect(() => {
-    loadEvents();
-    loadAssociations();
-    loadFollows();
-    loadMyTickets();
-  }, [user]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([loadEvents(), loadAssociations(), loadFollows(), loadMyTickets()]);
-    setRefreshing(false);
-  };
-
-  // Toggle follow/unfollow
+  // Toggle follow
   const toggleFollow = async (assoId: string) => {
-    if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté');
-      return;
-    }
+    if (!user) return;
 
     const isFollowing = followedAssos.includes(assoId);
 
@@ -225,24 +221,23 @@ export default function SocialScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-  <Text style={styles.headerTitle}>Social</Text>
-  
-  {/* Bouton Créer Association - Visible uniquement pour les admins */}
-  {profile?.is_admin && (
-    <TouchableOpacity
-      style={styles.createAssociationButton}
-      onPress={() => setCreateAssociationModalVisible(true)}
-      activeOpacity={0.8}
-    >
-      <LinearGradient colors={['#7566d9', '#5b4fc9']} style={styles.createAssociationButtonGradient}>
-        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-          <Path d="M12 5v14M5 12h14" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
-        </Svg>
-        <Text style={styles.createAssociationButtonText}>Créer</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  )}
-</View>
+          <Text style={styles.headerTitle}>Social</Text>
+          
+          {profile?.is_admin && (
+            <TouchableOpacity
+              style={styles.createAssociationButton}
+              onPress={() => setCreateAssociationModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={['#7566d9', '#5b4fc9']} style={styles.createAssociationButtonGradient}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Path d="M12 5v14M5 12h14" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+                </Svg>
+                <Text style={styles.createAssociationButtonText}>Créer</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -295,31 +290,25 @@ export default function SocialScreen() {
                     <Text style={styles.myTicketsTitle}>Mes billets</Text>
                     <TouchableOpacity 
                       activeOpacity={0.7}
-                      onPress={() => {
-                        Alert.alert('Bientôt disponible', 'La page complète arrive !');
-                      }}
+                      onPress={() => router.push('/my-events')}
                     >
                       <Text style={styles.seeAllLink}>Voir tout</Text>
                     </TouchableOpacity>
                   </View>
-
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.ticketsScroll}
                   >
-                    {myTickets.map((ticket) => (
+                    {myTickets.slice(0, 3).map((ticket) => (
                       <TouchableOpacity 
                         key={ticket.id} 
                         style={styles.ticketPreviewCard}
-                        activeOpacity={0.8}
-                        onPress={() => {
-      setSelectedTicket(ticket);
-      setTicketModalVisible(true);
-                        }}
+                        activeOpacity={0.9}
+                        onPress={() => router.push('/my-events')}
                       >
                         <LinearGradient
-                          colors={['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)']}
+                          colors={['rgba(117, 102, 217, 0.2)', 'rgba(117, 102, 217, 0.1)']}
                           style={styles.ticketPreviewGradient}
                         >
                           <View style={styles.ticketPreviewHeader}>
@@ -330,32 +319,25 @@ export default function SocialScreen() {
                             </View>
                             <View style={styles.ticketPreviewQR}>
                               <View style={styles.qrPlaceholder}>
-                                <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
-                                  <Rect x={3} y={3} width={8} height={8} rx={1} fill="#7566d9"/>
-                                  <Rect x={13} y={3} width={8} height={8} rx={1} fill="#7566d9"/>
-                                  <Rect x={3} y={13} width={8} height={8} rx={1} fill="#7566d9"/>
-                                  <Rect x={16} y={16} width={2} height={2} fill="#7566d9"/>
-                                  <Rect x={19} y={16} width={2} height={2} fill="#7566d9"/>
-                                  <Rect x={16} y={19} width={2} height={2} fill="#7566d9"/>
-                                  <Rect x={19} y={19} width={2} height={2} fill="#7566d9"/>
+                                <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
+                                  <Rect x={3} y={3} width={7} height={7} fill="#000" />
+                                  <Rect x={14} y={3} width={7} height={7} fill="#000" />
+                                  <Rect x={3} y={14} width={7} height={7} fill="#000" />
                                 </Svg>
                               </View>
                             </View>
                           </View>
                           <Text style={styles.ticketPreviewTitle} numberOfLines={2}>
-                            {ticket.event?.title}
+                            {ticket.event?.title || 'Événement'}
                           </Text>
                           <View style={styles.ticketPreviewInfo}>
                             <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                              <Rect x={3} y={4} width={18} height={18} rx={2} ry={2} stroke="rgba(255,255,255,0.5)" strokeWidth={2}/>
-                              <Line x1={16} y1={2} x2={16} y2={6} stroke="rgba(255,255,255,0.5)" strokeWidth={2} strokeLinecap="round"/>
-                              <Line x1={8} y1={2} x2={8} y2={6} stroke="rgba(255,255,255,0.5)" strokeWidth={2} strokeLinecap="round"/>
+                              <Rect x={3} y={4} width={18} height={18} rx={2} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                              <Line x1={16} y1={2} x2={16} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                              <Line x1={8} y1={2} x2={8} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
                             </Svg>
                             <Text style={styles.ticketPreviewDate}>
-                              {new Date(ticket.event?.date).toLocaleDateString('fr-FR', { 
-                                day: 'numeric', 
-                                month: 'short' 
-                              })}
+                              {ticket.event?.date ? formatEventDate(ticket.event.date) : ''}
                             </Text>
                           </View>
                           <View style={styles.ticketPreviewPrice}>
@@ -374,87 +356,80 @@ export default function SocialScreen() {
               {events.map((event) => (
                 <TouchableOpacity 
                   key={event.id} 
-                  activeOpacity={0.8}
+                  style={styles.eventCard}
+                  activeOpacity={0.9}
                   onPress={() => {
                     setSelectedEvent(event);
                     setEventModalVisible(true);
                   }}
                 >
-                  <View style={styles.eventCard}>
-                    <View style={[styles.eventImage, { backgroundColor: event.association?.logo_emoji ? '#5b5c8a' : '#ec4899' }]}>
-                      <View style={styles.eventBadge}>
-                        <Text style={styles.eventBadgeText}>{getEventBadge(event.date)}</Text>
-                      </View>
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+                    style={styles.eventImage}
+                  >
+                    <View style={styles.eventBadge}>
+                      <Text style={styles.eventBadgeText}>{getEventBadge(event.date)}</Text>
+                    </View>
+                  </LinearGradient>
+                  
+                  <View style={styles.eventContent}>
+                    <View style={styles.eventDateRow}>
+                      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                        <Rect x={3} y={4} width={18} height={18} rx={2} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                        <Line x1={16} y1={2} x2={16} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                        <Line x1={8} y1={2} x2={8} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                      </Svg>
+                      <Text style={styles.eventDate}>{formatEventDate(event.date)}</Text>
                     </View>
 
-                    <View style={styles.eventContent}>
-                      <View style={styles.eventDateRow}>
-                        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                          <Rect x={3} y={4} width={18} height={18} rx={2} ry={2} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                          <Line x1={16} y1={2} x2={16} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round"/>
-                          <Line x1={8} y1={2} x2={8} y2={6} stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round"/>
-                          <Line x1={3} y1={10} x2={21} y2={10} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                        </Svg>
-                        <Text style={styles.eventDate}>
-                          {formatEventDate(event.date)} • {event.time.slice(0, 5)}
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+
+                    <View style={styles.eventHost}>
+                      <LinearGradient
+                        colors={['#23243b', '#2d2e4f']}
+                        style={styles.eventHostAvatar}
+                      >
+                        <Text style={styles.eventHostAvatarText}>
+                          {event.association?.logo_emoji || '🎉'}
                         </Text>
-                      </View>
-
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-
-                      <View style={styles.eventHost}>
-                        <LinearGradient
-                          colors={['#23243b', '#2d2e4f']}
-                          start={{x: 0, y: 0}}
-                          end={{x: 1, y: 1}}
-                          style={styles.eventHostAvatar}
-                        >
-                          <Text style={styles.eventHostAvatarText}>
-                            {event.association?.logo_emoji || '🎉'}
-                          </Text>
-                        </LinearGradient>
-                        <Text style={styles.eventHostName}>{event.association?.name || 'Organisation'}</Text>
-                      </View>
-
-                      <View style={styles.eventStats}>
-                        <View style={styles.eventStat}>
-                          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                            <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-                            <Circle cx={9} cy={7} r={4} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                            <Path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-                          </Svg>
-                          <Text style={styles.eventStatText}>{event.participants_count} participants</Text>
-                        </View>
-                        <View style={styles.eventStat}>
-                          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                            <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                            <Circle cx={12} cy={10} r={3} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                          </Svg>
-                          <Text style={styles.eventStatText}>{event.location}</Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity 
-  style={styles.ticketButton} 
-  activeOpacity={0.8}
-  onPress={(e) => {
-    e.stopPropagation(); // Empêche d'ouvrir le modal détail
-    setSelectedEvent(event);
-    setEventModalVisible(true);
-  }}
->
-  <LinearGradient
-    colors={['#7566d9', '#5b4fc9']}
-    style={styles.ticketButtonGradient}
-    start={{x: 0, y: 0}}
-    end={{x: 1, y: 0}}
-  >
-    <Text style={styles.ticketButtonText}>
-      Voir les billets
-    </Text>
-  </LinearGradient>
-</TouchableOpacity>
+                      </LinearGradient>
+                      <Text style={styles.eventHostName}>
+                        {event.association?.name || 'Association'}
+                      </Text>
                     </View>
+
+                    <View style={styles.eventStats}>
+                      <View style={styles.eventStat}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                          <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                          <Circle cx={9} cy={7} r={4} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                        </Svg>
+                        <Text style={styles.eventStatText}>{event.participants_count || 0} participants</Text>
+                      </View>
+                      <View style={styles.eventStat}>
+                        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                          <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                          <Circle cx={12} cy={10} r={3} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
+                        </Svg>
+                        <Text style={styles.eventStatText}>{event.location}</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity 
+                      style={styles.ticketButton}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setSelectedEvent(event);
+                        setEventModalVisible(true);
+                      }}
+                    >
+                      <LinearGradient
+                        colors={['#7566d9', '#5b4fc9']}
+                        style={styles.ticketButtonGradient}
+                      >
+                        <Text style={styles.ticketButtonText}>Réserver</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -467,90 +442,93 @@ export default function SocialScreen() {
               <Text style={styles.sectionSubtitle}>Associations suivies</Text>
 
               {associations.filter(a => followedAssos.includes(a.id)).map((asso) => (
-  <TouchableOpacity
-    key={asso.id}
-    activeOpacity={0.9}
-    onPress={() => router.push(`/association-detail?id=${asso.id}`)}
-  >
-    <View style={styles.assoCard}>
-                  <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
+                <TouchableOpacity
+                  key={asso.id}
+                  style={styles.assoCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+                >
+                  <View style={[styles.assoHeader, { backgroundColor: asso.color || '#7566d9' }]} />
                   <View style={styles.assoLogo}>
                     <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
                   </View>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
-                    <Text style={styles.assoDescription}>{asso.description}</Text>
+                    <Text style={styles.assoDescription}>{asso.short_description}</Text>
                     
                     <View style={styles.assoStats}>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.followers_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.followers_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Followers</Text>
                       </View>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.events_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.events_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Événements</Text>
                       </View>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.posts_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.posts_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Publications</Text>
                       </View>
                     </View>
 
                     <TouchableOpacity
-                      onPress={() => toggleFollow(asso.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleFollow(asso.id);
+                      }}
                       activeOpacity={0.8}
                       style={styles.followButtonWrapper}
                     >
                       <LinearGradient
-                        colors={followedAssos.includes(asso.id) ? ['#2d2e4f', '#23243b'] : ['#7566d9', '#5b4fc9']}
+                        colors={['#2d2e4f', '#23243b']}
                         style={styles.followButton}
                         start={{x: 0, y: 0}}
                         end={{x: 1, y: 0}}
                       >
-                        <Text style={styles.followButtonText}>
-                          {followedAssos.includes(asso.id) ? 'Suivi ✓' : 'Suivre'}
-                        </Text>
+                        <Text style={styles.followButtonText}>Suivi ✓</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
-                </View>
                 </TouchableOpacity>
               ))}
 
               <Text style={styles.sectionSubtitle}>Toutes les associations</Text>
 
               {associations.filter(a => !followedAssos.includes(a.id)).map((asso) => (
-  <TouchableOpacity
-    key={asso.id}
-    activeOpacity={0.9}
-    onPress={() => router.push(`/association-detail?id=${asso.id}`)}
-  >
-    <View style={styles.assoCard}>
-                  <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
+                <TouchableOpacity
+                  key={asso.id}
+                  style={styles.assoCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+                >
+                  <View style={[styles.assoHeader, { backgroundColor: asso.color || '#7566d9' }]} />
                   <View style={styles.assoLogo}>
                     <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
                   </View>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
-                    <Text style={styles.assoDescription}>{asso.description}</Text>
+                    <Text style={styles.assoDescription}>{asso.short_description}</Text>
                     
                     <View style={styles.assoStats}>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.followers_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.followers_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Followers</Text>
                       </View>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.events_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.events_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Événements</Text>
                       </View>
                       <View style={styles.assoStat}>
-                        <Text style={styles.assoStatValue}>{asso.posts_count}</Text>
+                        <Text style={styles.assoStatValue}>{asso.posts_count || 0}</Text>
                         <Text style={styles.assoStatLabel}>Publications</Text>
                       </View>
                     </View>
 
                     <TouchableOpacity
-                      onPress={() => toggleFollow(asso.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleFollow(asso.id);
+                      }}
                       activeOpacity={0.8}
                       style={styles.followButtonWrapper}
                     >
@@ -564,7 +542,6 @@ export default function SocialScreen() {
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
-                </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -616,25 +593,7 @@ export default function SocialScreen() {
             </View>
           )}
         </ScrollView>
-        {/* Modal Créer Association */}
-<CreateAssociationModal
-  visible={createAssociationModalVisible}
-  onClose={() => setCreateAssociationModalVisible(false)}
-  onSuccess={() => {
-    setCreateAssociationModalVisible(false);
-    loadData(); // Recharge les données pour afficher la nouvelle association
-  }}
-/>
       </LinearGradient>
-       {/* Modal Détail du Billet */}
-      <TicketDetailModal
-        visible={ticketModalVisible}
-        ticket={selectedTicket}
-        onClose={() => {
-          setTicketModalVisible(false);
-          setSelectedTicket(null);
-        }}
-      />
 
       {/* Modal Détail Événement */}
       <EventDetailModal
@@ -649,6 +608,16 @@ export default function SocialScreen() {
           loadMyTickets();
         }}
       />
+
+      {/* Modal Créer Association */}
+      <CreateAssociationModal
+        visible={createAssociationModalVisible}
+        onClose={() => setCreateAssociationModalVisible(false)}
+        onSuccess={() => {
+          setCreateAssociationModalVisible(false);
+          loadAssociations();
+        }}
+      />
     </View>
   );
 }
@@ -661,15 +630,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  paddingHorizontal: 20,
-  paddingTop: 60,
-  paddingBottom: 20,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
   headerTitle: {
     fontSize: 34,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  createAssociationButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  createAssociationButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  createAssociationButtonText: {
+    fontSize: 14,
     fontWeight: '800',
     color: '#ffffff',
   },
@@ -1084,22 +1069,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#7566d9',
-  },
-  // Bouton Créer Association
-  createAssociationButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  createAssociationButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  createAssociationButtonText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#ffffff',
   },
 });
