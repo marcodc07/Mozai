@@ -1,4 +1,4 @@
-import BecomeAdminModal from '@/components/BecomeAdminModal';
+//import BecomeAdminModal from '@/components/BecomeAdminModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -54,12 +54,12 @@ export default function ProfileScreen() {
               end={{x: 1, y: 1}}
               style={styles.avatar}
             >
-              <Text style={styles.avatarText}>{user.avatar}</Text>
+              <Text style={styles.avatarText}>{profile?.full_name?.charAt(0).toUpperCase() || 'U'}</Text>
             </LinearGradient>
 
             <View style={styles.profileInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{user.name}</Text>
+                <Text style={styles.userName}>{profile?.full_name || 'Utilisateur'}</Text>
                 {isPremium && (
                   <LinearGradient
                     colors={['#fbbf24', '#f59e0b']}
@@ -74,15 +74,17 @@ export default function ProfileScreen() {
                   </LinearGradient>
                 )}
               </View>
-              <Text style={styles.userEmail}>{user.email}</Text>
+              {(profile?.email || user?.email) && (
+  <Text style={styles.userEmail}>{profile?.email || user?.email}</Text>
+)}
               <View style={styles.schoolRow}>
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke="rgba(255,255,255,0.6)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
                   <Path d="M6 12v5c3 3 9 3 12 0v-5" stroke="rgba(255,255,255,0.6)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
                 </Svg>
-                <Text style={styles.userSchool}>{user.school}</Text>
+                <Text style={styles.userSchool}>{'Université'}</Text>
               </View>
-              <Text style={styles.userLevel}>{user.level}</Text>
+              <Text style={styles.userLevel}>{profile?.level || 'Étudiant'}</Text>
             </View>
           </View>
 
@@ -112,8 +114,8 @@ export default function ProfileScreen() {
       <Text style={styles.adminBadgeText}>Mode Admin</Text>
       <View style={styles.adminStatusBadge}>
         <Text style={styles.adminStatusText}>
-          {profile.admin_subscription_status === 'trial' ? 'Essai gratuit' :
-           profile.admin_subscription_status === 'active' ? 'Actif' : 'Expiré'}
+          {profile?.admin_subscription_status === 'trial' ? 'Essai gratuit' :
+           profile?.admin_subscription_status === 'active' ? 'Actif' : 'Expiré'}
         </Text>
       </View>
     </LinearGradient>
@@ -590,7 +592,9 @@ export default function ProfileScreen() {
           {/* Footer Info */}
           <View style={styles.footerInfo}>
             <Text style={styles.versionText}>Mozaï v1.0.0</Text>
-            <Text style={styles.memberSinceText}>Membre depuis {user.joinDate}</Text>
+            <Text style={styles.memberSinceText}>
+  Membre depuis {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : 'récemment'}
+</Text>
           </View>
 
           {/* Logout Button */}
@@ -615,13 +619,11 @@ export default function ProfileScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
         {/* Modal Devenir Admin */}
-<BecomeAdminModal
+{/* <BecomeAdminModal
   visible={becomeAdminModalVisible}
   onClose={() => setBecomeAdminModalVisible(false)}
-  onSuccess={() => {
-    setBecomeAdminModalVisible(false);
-  }}
-/>
+  onSuccess={() => refreshProfile()}
+/> */}
       </LinearGradient>
     </View>
   );

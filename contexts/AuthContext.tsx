@@ -5,11 +5,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 type ProfileType = {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  full_name: string | null;
   university_id: string | null;
+  level: string | null;
+  is_premium: boolean;
   is_admin: boolean;
-  admin_subscription_status: string;
+  admin_subscription_status: string | null;
   created_at: string;
 };
 
@@ -37,6 +38,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const loadProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
@@ -49,41 +75,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       setProfile(data);
     }
+    setLoading(false);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setProfile(null);
   };
 
   const refreshProfile = async () => {
     if (user) {
       await loadProfile(user.id);
     }
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setProfile(null);
   };
 
   return (
