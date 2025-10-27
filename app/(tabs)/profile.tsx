@@ -1,4 +1,4 @@
-//import BecomeAdminModal from '@/components/BecomeAdminModal';
+import BecomeAdminModal from '@/components/BecomeAdminModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -8,7 +8,7 @@ import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } f
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 
 export default function ProfileScreen() {
-    const [becomeAdminModalVisible, setBecomeAdminModalVisible] = useState(false);
+  const [becomeAdminModalVisible, setBecomeAdminModalVisible] = useState(false);
   const { user, profile, signOut: authSignOut } = useAuth();
   const [isPremium, setIsPremium] = useState(true);
   const [notifPush, setNotifPush] = useState(true);
@@ -618,13 +618,17 @@ export default function ProfileScreen() {
 
           <View style={{ height: 100 }} />
         </ScrollView>
-        {/* Modal Devenir Admin */}
-{/* <BecomeAdminModal
+        {/* Modal Become Admin */}
+<BecomeAdminModal
   visible={becomeAdminModalVisible}
   onClose={() => setBecomeAdminModalVisible(false)}
-  onSuccess={() => refreshProfile()}
-/> */}
+  onSuccess={() => {
+    // Recharger le profil pour afficher le nouveau statut
+    window.location.reload(); // ou tu peux recharger le contexte
+  }}
+/>
       </LinearGradient>
+      
     </View>
   );
 }

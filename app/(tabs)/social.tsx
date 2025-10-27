@@ -1,4 +1,4 @@
-//import CreateAssociationModal from '@/components/CreateAssociationModal';
+import CreateAssociationModal from '@/components/CreateAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -617,15 +617,7 @@ export default function SocialScreen() {
           )}
         </ScrollView>
         {/* Modal Créer Association */}
-{/* <CreateAssociationModal
-  visible={createAssociationModalVisible}
-  onClose={() => setCreateAssociationModalVisible(false)}
-  onSuccess={async () => {
-    await loadAssociations();
-    await loadEvents();
-    setCreateAssociationModalVisible(false);
-  }}
-/> */}
+
       </LinearGradient>
        {/* Modal Détail du Billet */}
       <TicketDetailModal
@@ -649,7 +641,16 @@ export default function SocialScreen() {
           loadEvents();
           loadMyTickets();
         }}
-      />
+        />
+        {/* Modal Create Association */}
+<CreateAssociationModal
+  visible={createAssociationModalVisible}
+  onClose={() => setCreateAssociationModalVisible(false)}
+  onSuccess={() => {
+    // Recharger les associations
+    loadAssociations();
+  }}
+/>
     </View>
   );
 }
