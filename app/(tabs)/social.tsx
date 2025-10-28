@@ -828,6 +828,21 @@ const loadAdminStatus = async () => {
     loadAssociations();
   }}
 />
+{/* Modal Edit Association */}
+{selectedAssoToEdit && (
+  <EditAssociationModal
+    visible={editModalVisible}
+    association={selectedAssoToEdit}
+    onClose={() => {
+      setEditModalVisible(false);
+      setSelectedAssoToEdit(null);
+    }}
+    onSuccess={() => {
+      loadMyAssociations();
+      loadAssociations();
+    }}
+  />
+)}
     </View>
   );
 }
