@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
+
 export default function SocialScreen() {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState('events');
@@ -26,6 +27,7 @@ export default function SocialScreen() {
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [myAssociations, setMyAssociations] = useState<any[]>([]);
 
   // Charger les événements
   const loadEvents = async () => {
@@ -88,6 +90,23 @@ export default function SocialScreen() {
       setAssociations(data || []);
     }
   };
+
+  // Charger les associations créées par l'utilisateur
+const loadMyAssociations = async () => {
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from('associations')
+    .select('*')
+    .eq('created_by', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erreur chargement mes associations:', error);
+  } else {
+    setMyAssociations(data || []);
+  }
+};
 
   // Charger les follows de l'utilisateur
   const loadFollows = async () => {
@@ -152,11 +171,12 @@ const loadAdminStatus = async () => {
     loadFollows();
     loadMyTickets();
     loadAdminStatus(); // ← AJOUTE CETTE LIGNE
+    loadMyAssociations(); 
   }, [user]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadEvents(), loadAssociations(), loadFollows(), loadMyTickets()]);
+    await Promise.all([loadEvents(), loadAssociations(), loadFollows(), loadMyTickets(), loadMyAssociations()]);
     setRefreshing(false);
   };
 
@@ -487,10 +507,99 @@ const loadAdminStatus = async () => {
               ))}
             </View>
           )}
+          
+
 
           {/* ASSOCIATIONS TAB */}
           {activeTab === 'assos' && (
             <View style={styles.section}>
+
+                        {/* MES ASSOCIATIONS */}
+{isAdmin && myAssociations.length > 0 && (
+  <>
+    <View style={styles.myAssosHeader}>
+      <View style={styles.myAssosHeaderLeft}>
+        <Text style={styles.sectionSubtitle}>Mes Associations</Text>
+        <View style={styles.adminBadge}>
+          <Text style={styles.adminBadgeText}>Admin</Text>
+        </View>
+      </View>
+      <Text style={styles.myAssosCount}>{myAssociations.length}</Text>
+    </View>
+
+    {myAssociations.map((asso) => (
+      <TouchableOpacity
+        key={asso.id}
+        activeOpacity={0.9}
+        onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+      >
+        <View style={styles.assoCard}>
+          <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
+          <View style={styles.assoLogo}>
+            <AssociationLogo
+              name={asso.name}
+              logoUrl={asso.profile_photo_url}
+              emoji={asso.logo_emoji}
+              size={70}
+            />
+          </View>
+          <View style={styles.assoContent}>
+            <View style={styles.myAssoNameRow}>
+              <Text style={styles.assoName}>{asso.name}</Text>
+              <View style={styles.ownerBadge}>
+                <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                    fill="#fbbf24"
+                  />
+                </Svg>
+                <Text style={styles.ownerBadgeText}>Propriétaire</Text>
+              </View>
+            </View>
+            
+            <Text style={styles.assoDescription}>
+              {asso.short_description || asso.description}
+            </Text>
+            
+            <View style={styles.assoStats}>
+              <View style={styles.assoStat}>
+                <Text style={styles.assoStatValue}>{asso.followers_count || 0}</Text>
+                <Text style={styles.assoStatLabel}>Followers</Text>
+              </View>
+              <View style={styles.assoStat}>
+                <Text style={styles.assoStatValue}>{asso.events_count || 0}</Text>
+                <Text style={styles.assoStatLabel}>Événements</Text>
+              </View>
+              <View style={styles.assoStat}>
+                <Text style={styles.assoStatValue}>{asso.posts_count || 0}</Text>
+                <Text style={styles.assoStatLabel}>Publications</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                router.push(`/association-detail?id=${asso.id}`);
+              }}
+              activeOpacity={0.8}
+              style={styles.followButtonWrapper}
+            >
+              <LinearGradient
+                colors={['#7566d9', '#5b4fc9']}
+                style={styles.followButton}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+              >
+                <Text style={styles.followButtonText}>Gérer</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    ))}
+  </>
+)}
+
               <Text style={styles.sectionSubtitle}>Associations suivies</Text>
 
               {associations.filter(a => followedAssos.includes(a.id)).map((asso) => (
@@ -501,14 +610,19 @@ const loadAdminStatus = async () => {
   >
     <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
-                  <View style={styles.assoLogo}>
-  <AssociationLogo
-    name={asso.name}
-    logoUrl={asso.profile_photo_url}
-    emoji={asso.logo_emoji}
-    size={70}
-  />
-</View>
+                  <AssociationLogo
+  name={asso.name}
+  logoUrl={asso.profile_photo_url}
+  emoji={asso.logo_emoji}
+  size={70}
+  style={{
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    borderWidth: 4,
+    borderColor: '#23243b',
+  }}
+/>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
                     <Text style={styles.assoDescription}>{asso.description}</Text>
@@ -559,14 +673,19 @@ const loadAdminStatus = async () => {
   >
     <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
-                  <View style={styles.assoLogo}>
-  <AssociationLogo
-    name={asso.name}
-    logoUrl={asso.profile_photo_url}
-    emoji={asso.logo_emoji}
-    size={70}
-  />
-</View>
+                  <AssociationLogo
+  name={asso.name}
+  logoUrl={asso.profile_photo_url}
+  emoji={asso.logo_emoji}
+  size={70}
+  style={{
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    borderWidth: 4,
+    borderColor: '#23243b',
+  }}
+/>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
                     <Text style={styles.assoDescription}>{asso.description}</Text>
@@ -1157,5 +1276,58 @@ createButtonText: {
   fontSize: 15,
   fontWeight: '800',
   color: '#ffffff',
+},
+// Mes Associations
+myAssosHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 12,
+  marginTop: 24,
+},
+myAssosHeaderLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+},
+adminBadge: {
+  backgroundColor: 'rgba(117, 102, 217, 0.2)',
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+  borderRadius: 6,
+  borderWidth: 1,
+  borderColor: 'rgba(117, 102, 217, 0.4)',
+},
+adminBadgeText: {
+  fontSize: 10,
+  fontWeight: '800',
+  color: '#7566d9',
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+},
+myAssosCount: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: 'rgba(255, 255, 255, 0.4)',
+},
+myAssoNameRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  marginBottom: 8,
+},
+ownerBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 3,
+  backgroundColor: 'rgba(251, 191, 36, 0.15)',
+  paddingHorizontal: 6,
+  paddingVertical: 2,
+  borderRadius: 5,
+},
+ownerBadgeText: {
+  fontSize: 9,
+  fontWeight: '700',
+  color: '#fbbf24',
 },
 });
