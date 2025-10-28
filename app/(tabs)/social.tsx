@@ -1,5 +1,6 @@
 import AssociationLogo from '@/components/AssociationLogo';
 import CreateAssociationModal from '@/components/CreateAssociationModal';
+import EditAssociationModal from '@/components/EditAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import TicketDetailModal from '@/components/TicketDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +29,8 @@ export default function SocialScreen() {
   const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myAssociations, setMyAssociations] = useState<any[]>([]);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+const [selectedAssoToEdit, setSelectedAssoToEdit] = useState<any>(null);
 
   // Charger les événements
   const loadEvents = async () => {
@@ -576,23 +579,26 @@ const loadAdminStatus = async () => {
               </View>
             </View>
 
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push(`/association-detail?id=${asso.id}`);
-              }}
-              activeOpacity={0.8}
-              style={styles.followButtonWrapper}
-            >
-              <LinearGradient
-                colors={['#7566d9', '#5b4fc9']}
-                style={styles.followButton}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-              >
-                <Text style={styles.followButtonText}>Gérer</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.myAssoButtons}>
+  <TouchableOpacity
+    onPress={() => router.push(`/association-detail?id=${asso.id}`)}
+    activeOpacity={0.8}
+    style={styles.viewPageButton}
+  >
+    <Text style={styles.viewPageText}>Voir la page</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    onPress={() => {
+  setSelectedAssoToEdit(asso);
+  setEditModalVisible(true);
+}}
+    activeOpacity={0.8}
+    style={styles.modifyButton}
+  >
+    <Text style={styles.modifyButtonText}>Modifier</Text>
+  </TouchableOpacity>
+</View>
           </View>
         </View>
       </TouchableOpacity>
@@ -772,7 +778,22 @@ const loadAdminStatus = async () => {
             </View>
           )}
         </ScrollView>
-        {/* Modal Créer Association */}
+        
+        {/* Modal Modification Association */}
+      {selectedAssoToEdit && (
+        <EditAssociationModal
+          visible={editModalVisible}
+          association={selectedAssoToEdit}
+          onClose={() => {
+            setEditModalVisible(false);
+            setSelectedAssoToEdit(null);
+          }}
+          onSuccess={() => {
+            loadMyAssociations();
+            loadAssociations();
+          }}
+        />
+      )}
 
       </LinearGradient>
        {/* Modal Détail du Billet */}
@@ -1330,4 +1351,38 @@ ownerBadgeText: {
   fontWeight: '700',
   color: '#fbbf24',
 },
+// Boutons Mes Associations
+myAssoButtons: {
+  flexDirection: 'row',
+  gap: 10,
+},
+viewPageButton: {
+  flex: 1,
+  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.15)',
+},
+viewPageText: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#ffffff',
+},
+modifyButton: {
+  flex: 1,
+  backgroundColor: 'rgba(117, 102, 217, 0.2)',
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(117, 102, 217, 0.4)',
+},
+modifyButtonText: {
+  fontSize: 14,
+  fontWeight: '700',
+  color: '#7566d9',
+},
+
 });
