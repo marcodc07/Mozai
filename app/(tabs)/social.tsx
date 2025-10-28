@@ -1,3 +1,4 @@
+import AssociationLogo from '@/components/AssociationLogo';
 import CreateAssociationModal from '@/components/CreateAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import TicketDetailModal from '@/components/TicketDetailModal';
@@ -24,6 +25,7 @@ export default function SocialScreen() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Charger les événements
   const loadEvents = async () => {
@@ -72,8 +74,7 @@ export default function SocialScreen() {
 
     let query = supabase
       .from('associations')
-      .select('*')
-      .order('followers_count', { ascending: false });
+.select('*')      .order('followers_count', { ascending: false });
 
     if (profileData?.university_id) {
       query = query.eq('university_id', profileData.university_id);
@@ -130,11 +131,27 @@ export default function SocialScreen() {
     }
   };
 
+  // Charger le statut admin
+const loadAdminStatus = async () => {
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single();
+
+  if (!error && data) {
+    setIsAdmin(data.is_admin || false);
+  }
+};
+
   useEffect(() => {
     loadEvents();
     loadAssociations();
     loadFollows();
     loadMyTickets();
+    loadAdminStatus(); // ← AJOUTE CETTE LIGNE
   }, [user]);
 
   const onRefresh = async () => {
@@ -223,22 +240,32 @@ export default function SocialScreen() {
         start={{x: 0, y: 0}}
         end={{x: 0, y: 1}}
       >
-        {/* Header */}
+{/* Header */}
         <View style={styles.header}>
   <Text style={styles.headerTitle}>Social</Text>
   
   {/* Bouton Créer Association - Visible uniquement pour les admins */}
-  {profile?.is_admin && (
+  {isAdmin && (
     <TouchableOpacity
-      style={styles.createAssociationButton}
       onPress={() => setCreateAssociationModalVisible(true)}
       activeOpacity={0.8}
+      style={styles.createButton}
     >
-      <LinearGradient colors={['#7566d9', '#5b4fc9']} style={styles.createAssociationButtonGradient}>
+      <LinearGradient
+        colors={['#7566d9', '#5b4fc9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.createButtonGradient}
+      >
         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-          <Path d="M12 5v14M5 12h14" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" />
+          <Path
+            d="M12 5v14M5 12h14"
+            stroke="#ffffff"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
         </Svg>
-        <Text style={styles.createAssociationButtonText}>Créer</Text>
+        <Text style={styles.createButtonText}>Créer</Text>
       </LinearGradient>
     </TouchableOpacity>
   )}
@@ -475,8 +502,13 @@ export default function SocialScreen() {
     <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
                   <View style={styles.assoLogo}>
-                    <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
-                  </View>
+  <AssociationLogo
+    name={asso.name}
+    logoUrl={asso.profile_photo_url}
+    emoji={asso.logo_emoji}
+    size={70}
+  />
+</View>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
                     <Text style={styles.assoDescription}>{asso.description}</Text>
@@ -528,8 +560,13 @@ export default function SocialScreen() {
     <View style={styles.assoCard}>
                   <View style={[styles.assoHeader, { backgroundColor: asso.color }]} />
                   <View style={styles.assoLogo}>
-                    <Text style={styles.assoEmoji}>{asso.logo_emoji}</Text>
-                  </View>
+  <AssociationLogo
+    name={asso.name}
+    logoUrl={asso.profile_photo_url}
+    emoji={asso.logo_emoji}
+    size={70}
+  />
+</View>
                   <View style={styles.assoContent}>
                     <Text style={styles.assoName}>{asso.name}</Text>
                     <Text style={styles.assoDescription}>{asso.description}</Text>
@@ -1104,4 +1141,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#ffffff',
   },
+
+createButton: {
+  borderRadius: 12,
+  overflow: 'hidden',
+},
+createButtonGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+},
+createButtonText: {
+  fontSize: 15,
+  fontWeight: '800',
+  color: '#ffffff',
+},
 });

@@ -1,10 +1,14 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,20 +34,14 @@ export default function CreateAssociationModal({
 }: CreateAssociationModalProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Form fields
   const [name, setName] = useState('');
   const [shortDescription, setShortDescription] = useState('');
   const [longDescription, setLongDescription] = useState('');
-  const [emoji, setEmoji] = useState('🎉');
+  const [logoUri, setLogoUri] = useState<string | null>(null);
   const [color, setColor] = useState('#7566d9');
-
-  // Emojis populaires pour associations
-  const popularEmojis = [
-    '🎉', '🎭', '🎨', '🎵', '⚽', '🏀', '🎮', '📚',
-    '🧪', '💡', '🌍', '🎬', '📷', '🎤', '🎸', '🏆',
-    '🚀', '💻', '🎓', '🔬', '🎪', '🎨', '🏛️', '🌟',
-  ];
 
   // Couleurs prédéfinies
   const colors = [
@@ -56,6 +54,90 @@ export default function CreateAssociationModal({
     { name: 'Cyan', value: '#06b6d4' },
     { name: 'Indigo', value: '#6366f1' },
   ];
+
+  // Fonction pour picker une image
+  const pickImage = async () => {
+    // Demander la permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Nous avons besoin d\'accéder à tes photos');
+      return;
+    }
+
+    // Ouvrir le picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // Carré
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploadingImage(true);
+
+      try {
+        // Redimensionner l'image à 512x512
+        const manipulatedImage = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 512, height: 512 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        setLogoUri(manipulatedImage.uri);
+      } catch (error) {
+        console.error('Erreur manipulation image:', error);
+        Alert.alert('Erreur', 'Impossible de traiter l\'image');
+      } finally {
+        setUploadingImage(false);
+      }
+    }
+  };
+
+  // Upload l'image sur Supabase Storage
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    try {
+      // Générer un nom unique
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const filePath = `logos/${fileName}`;
+
+      // Lire le fichier en base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+
+      // Décoder base64 en ArrayBuffer
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+
+      // Upload sur Supabase
+      const { error: uploadError } = await supabase.storage
+        .from('association-logos')
+        .upload(filePath, byteArray.buffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Erreur upload:', uploadError);
+        return null;
+      }
+
+      // Récupérer l'URL publique
+      const { data } = supabase.storage
+        .from('association-logos')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Erreur upload image:', error);
+      return null;
+    }
+  };
 
   const handleCreate = async () => {
     if (!user) {
@@ -81,6 +163,17 @@ export default function CreateAssociationModal({
 
     setLoading(true);
 
+    // Upload l'image si elle existe
+    let logoUrl: string | null = null;
+    if (logoUri) {
+      logoUrl = await uploadImage(logoUri);
+      if (!logoUrl) {
+        setLoading(false);
+        Alert.alert('Erreur', 'Impossible d\'uploader le logo');
+        return;
+      }
+    }
+
     // Récupérer l'university_id du user
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
@@ -102,7 +195,8 @@ export default function CreateAssociationModal({
           name: name.trim(),
           short_description: shortDescription.trim(),
           long_description: longDescription.trim() || shortDescription.trim(),
-          logo_emoji: emoji,
+          profile_photo_url: logoUrl,
+          logo_emoji: logoUrl ? null : name.trim().charAt(0).toUpperCase(), // Emoji de fallback
           color: color,
           university_id: profileData.university_id,
           created_by: user.id,
@@ -131,7 +225,7 @@ export default function CreateAssociationModal({
               setName('');
               setShortDescription('');
               setLongDescription('');
-              setEmoji('🎉');
+              setLogoUri(null);
               setColor('#7566d9');
               
               onSuccess();
@@ -141,6 +235,11 @@ export default function CreateAssociationModal({
         ]
       );
     }
+  };
+
+  // Générer l'initiale pour l'avatar
+  const getInitial = () => {
+    return name.trim().charAt(0).toUpperCase() || 'A';
   };
 
   return (
@@ -185,9 +284,47 @@ export default function CreateAssociationModal({
             {/* Preview Card */}
             <View style={styles.previewCard}>
               <View style={[styles.previewHeader, { backgroundColor: color }]} />
-              <View style={styles.previewLogo}>
-                <Text style={styles.previewEmoji}>{emoji}</Text>
-              </View>
+              
+              {/* Logo */}
+              <TouchableOpacity
+                onPress={pickImage}
+                activeOpacity={0.8}
+                style={styles.previewLogo}
+              >
+                {logoUri ? (
+                  <Image source={{ uri: logoUri }} style={styles.logoImage} />
+                ) : (
+                  <LinearGradient
+                    colors={['#7566d9', '#a7bdd9']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.logoGradient}
+                  >
+                    <Text style={styles.logoInitial}>{getInitial()}</Text>
+                  </LinearGradient>
+                )}
+                
+                {/* Badge "modifier" */}
+                <View style={styles.editBadge}>
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <Path
+                      d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                      stroke="#ffffff"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+              </TouchableOpacity>
+
               <View style={styles.previewContent}>
                 <Text style={styles.previewName}>
                   {name.trim() || 'Nom de l\'association'}
@@ -197,6 +334,11 @@ export default function CreateAssociationModal({
                 </Text>
               </View>
             </View>
+
+            {/* Upload hint */}
+            <Text style={styles.uploadHint}>
+              📷 Clique sur le logo pour ajouter une photo
+            </Text>
 
             {/* Form */}
             <View style={styles.section}>
@@ -254,33 +396,13 @@ export default function CreateAssociationModal({
               </View>
             </View>
 
-            {/* Emoji */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Logo (emoji)</Text>
-              <View style={styles.emojiGrid}>
-                {popularEmojis.map((emojiOption) => (
-                  <TouchableOpacity
-                    key={emojiOption}
-                    onPress={() => setEmoji(emojiOption)}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.emojiButton,
-                      emoji === emojiOption && styles.emojiButtonActive,
-                    ]}
-                  >
-                    <Text style={styles.emojiButtonText}>{emojiOption}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
             {/* Couleur */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Couleur principale</Text>
               <View style={styles.colorGrid}>
-                {colors.map((colorOption) => (
+                {colors.map((colorOption, index) => (
                   <TouchableOpacity
-                    key={colorOption.value}
+                    key={`color-${index}`}
                     onPress={() => setColor(colorOption.value)}
                     activeOpacity={0.7}
                     style={[
@@ -308,7 +430,7 @@ export default function CreateAssociationModal({
             {/* CTA Button */}
             <TouchableOpacity
               onPress={handleCreate}
-              disabled={loading}
+              disabled={loading || uploadingImage}
               activeOpacity={0.8}
               style={styles.ctaButton}
             >
@@ -383,7 +505,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 24,
     overflow: 'visible',
-    marginBottom: 24,
+    marginBottom: 16,
     marginTop: 40,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -400,14 +522,37 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 4,
     borderColor: '#23243b',
+    overflow: 'hidden',
   },
-  previewEmoji: {
-    fontSize: 32,
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  logoGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoInitial: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#7566d9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#23243b',
   },
   previewContent: {
     padding: 20,
@@ -423,6 +568,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.7)',
     lineHeight: 20,
+  },
+  uploadHint: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginBottom: 24,
   },
   section: {
     marginBottom: 28,
@@ -468,28 +619,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
     marginTop: 6,
     textAlign: 'right',
-  },
-  emojiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  emojiButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  emojiButtonActive: {
-    backgroundColor: 'rgba(117, 102, 217, 0.2)',
-    borderColor: '#7566d9',
-  },
-  emojiButtonText: {
-    fontSize: 28,
   },
   colorGrid: {
     flexDirection: 'row',
