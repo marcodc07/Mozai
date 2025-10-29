@@ -1,5 +1,7 @@
 import EventDetailModal from '@/components/EventDetailModal';
 import PostDetailModal from '@/components/PostDetailModal';
+import AssociationLogo from '@/components/AssociationLogo';
+import EditAssociationModal from '@/components/EditAssociationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Animated,
     Image,
     RefreshControl,
@@ -40,6 +43,8 @@ export default function AssociationDetailScreen() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
+  const [isOwner, setIsOwner] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   const followButtonScale = new Animated.Value(1);
 
@@ -63,6 +68,11 @@ export default function AssociationDetailScreen() {
     }
 
     setAssociation(assoData);
+
+    // Vérifier si l'utilisateur est le créateur
+    if (user) {
+      setIsOwner(assoData.created_by === user.id);
+    }
 
     const { data: pinnedData } = await supabase
       .from('association_posts')
@@ -370,8 +380,16 @@ export default function AssociationDetailScreen() {
             </TouchableOpacity>
 
             <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoEmoji}>{association.logo_emoji}</Text>
+              <AssociationLogo
+                name={association.name}
+                logoUrl={association.profile_photo_url}
+                emoji={association.logo_emoji}
+                size={90}
+                style={{
+                  borderWidth: 5,
+                  borderColor: '#23243b',
+                }}
+              />
               </View>
             </View>
           </View>
@@ -398,7 +416,21 @@ export default function AssociationDetailScreen() {
               </View>
             </View>
 
-            <Animated.View style={{ transform: [{ scale: followButtonScale }] }}>
+            {isOwner ? (
+              <TouchableOpacity
+                onPress={() => setEditModalVisible(true)}
+                activeOpacity={0.8}
+                style={styles.followButtonWrapper}
+              >
+                <LinearGradient
+                  colors={['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)']}
+                  style={styles.followButton}
+                >
+                  <Text style={styles.followButtonText}>Modifier</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <Animated.View style={{ transform: [{ scale: followButtonScale }] }}>
               <TouchableOpacity onPress={toggleFollow} activeOpacity={0.8} style={styles.followButtonWrapper}>
                 <LinearGradient
                   colors={isFollowing ? ['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)'] : ['#7566d9', '#5b4fc9']}
@@ -408,6 +440,7 @@ export default function AssociationDetailScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
+            )}
           </View>
 
           {/* TABS */}
@@ -465,6 +498,20 @@ export default function AssociationDetailScreen() {
 
                 <View style={styles.postsHeader}>
                   <Text style={styles.postsTitle}>Publications</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {isOwner && (
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => {
+                          Alert.alert('Bientôt disponible', 'La création de post arrive bientôt !');
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                          <Path d="M12 5v14M5 12h14" stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                        </Svg>
+                      </TouchableOpacity>
+                    )}
                   <TouchableOpacity
                     style={styles.mediaButton}
                     onPress={() => setShowMediaGrid(true)}
@@ -1144,4 +1191,23 @@ const styles = StyleSheet.create({
 
   emptyState: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 15, color: 'rgba(255, 255, 255, 0.5)' },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(117, 102, 217, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(117, 102, 217, 0.3)',
+  },
+  addMemberCard: {
+    borderWidth: 2,
+    borderColor: 'rgba(117, 102, 217, 0.3)',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(117, 102, 217, 0.05)',
+  },
+  addMemberAvatar: {
+    backgroundColor: 'rgba(117, 102, 217, 0.15)',
+  },
 });
