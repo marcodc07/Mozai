@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
@@ -95,22 +96,38 @@ export default function CreatePostModal({
 
   const uploadImage = async (uri: string): Promise<string | null> => {
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
+      // Générer un nom unique pour le fichier
       const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${associationId}-${Date.now()}.${fileExt}`;
       const filePath = `association-posts/${fileName}`;
 
+      // Lire le fichier en base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+
+      // Convertir base64 en ArrayBuffer
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+
+      // Upload sur Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, blob, {
+        .upload(filePath, byteArray.buffer, {
           contentType: `image/${fileExt}`,
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Erreur upload:', uploadError);
+        throw uploadError;
+      }
 
+      // Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from('media')
         .getPublicUrl(filePath);
