@@ -1,4 +1,5 @@
 import AssociationLogo from '@/components/AssociationLogo';
+import CreatePostModal from '@/components/CreatePostModal';
 import EditAssociationModal from '@/components/EditAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import PostDetailModal from '@/components/PostDetailModal';
@@ -45,6 +46,7 @@ export default function AssociationDetailScreen() {
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
 
   const followButtonScale = new Animated.Value(1);
 
@@ -500,7 +502,7 @@ export default function AssociationDetailScreen() {
                     {isOwner && (
                       <TouchableOpacity
                         style={styles.addPostButton}
-                        onPress={() => Alert.alert('Bientôt', 'Créer une publication')}
+                        onPress={() => setCreatePostModalVisible(true)}
                         activeOpacity={0.8}
                       >
                         <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -908,7 +910,7 @@ export default function AssociationDetailScreen() {
         {isOwner && activeTab === 'posts' && (
           <TouchableOpacity
             style={styles.floatingAddButton}
-            onPress={() => Alert.alert('Bientôt', 'Créer une publication')}
+            onPress={() => setCreatePostModalVisible(true)}
             activeOpacity={0.9}
           >
             <LinearGradient
@@ -956,6 +958,20 @@ export default function AssociationDetailScreen() {
           visible={editModalVisible}
           association={association}
           onClose={() => setEditModalVisible(false)}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
+
+      {/* MODAL CRÉATION POST */}
+      {association && (
+        <CreatePostModal
+          visible={createPostModalVisible}
+          associationId={association.id}
+          associationName={association.name}
+          associationEmoji={association.logo_emoji}
+          onClose={() => setCreatePostModalVisible(false)}
           onSuccess={() => {
             loadAssociationData();
           }}
