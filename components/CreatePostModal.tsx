@@ -116,7 +116,7 @@ export default function CreatePostModal({
 
       // Upload sur Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('media')
+        .from('association-logos')
         .upload(filePath, byteArray.buffer, {
           contentType: `image/${fileExt}`,
           upsert: false,
@@ -129,7 +129,7 @@ export default function CreatePostModal({
 
       // Récupérer l'URL publique
       const { data: { publicUrl } } = supabase.storage
-        .from('media')
+        .from('association-logos')
         .getPublicUrl(filePath);
 
       return publicUrl;

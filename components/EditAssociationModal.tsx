@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
@@ -82,16 +83,26 @@ export default function EditAssociationModal({
 
   const uploadLogo = async (uri: string): Promise<string | null> => {
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
       const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${association.id}-${Date.now()}.${fileExt}`;
       const filePath = `association-logos/${fileName}`;
 
+      // Lire le fichier en base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+
+      // Convertir base64 en ArrayBuffer
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+
       const { error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filePath, blob, {
+        .from('association-logos')
+        .upload(filePath, byteArray.buffer, {
           contentType: `image/${fileExt}`,
           upsert: true,
         });
@@ -99,7 +110,7 @@ export default function EditAssociationModal({
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('media')
+        .from('association-logos')
         .getPublicUrl(filePath);
 
       return publicUrl;
