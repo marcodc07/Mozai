@@ -146,6 +146,7 @@ export default function CreatePostModal({
       // Création du post
       const postData: any = {
         association_id: associationId,
+        author_id: user?.id,
         content: content.trim(),
         is_pinned: isPinned,
       };
