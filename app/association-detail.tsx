@@ -308,15 +308,8 @@ export default function AssociationDetailScreen() {
 
             <Text style={styles.postContent}>{post.content}</Text>
 
-            {post.media_type === 'photo' && post.media_url && (
+            {post.media_url && (
               <Image source={{ uri: post.media_url }} style={styles.postImage} />
-            )}
-
-            {post.media_type === 'link' && (
-              <View style={styles.linkCard}>
-                <Text style={styles.linkTitle}>{post.link_title || 'Lien externe'}</Text>
-                <Text style={styles.linkUrl}>{post.link_url}</Text>
-              </View>
             )}
 
             <View style={styles.postFooter}>

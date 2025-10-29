@@ -84,8 +84,7 @@ export default function CreatePostModal({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
+      allowsEditing: false,
       quality: 0.8,
     });
 
@@ -138,28 +137,27 @@ export default function CreatePostModal({
 
     try {
       let mediaUrl: string | null = null;
-      let mediaType: string | null = null;
 
       // Upload de l'image si présente
       if (imageUri) {
         mediaUrl = await uploadImage(imageUri);
-        if (mediaUrl) {
-          mediaType = 'photo';
-        }
       }
 
       // Création du post
+      const postData: any = {
+        association_id: associationId,
+        content: content.trim(),
+        is_pinned: isPinned,
+      };
+
+      // Ajouter media_url seulement si présent
+      if (mediaUrl) {
+        postData.media_url = mediaUrl;
+      }
+
       const { error } = await supabase
         .from('association_posts')
-        .insert([{
-          association_id: associationId,
-          content: content.trim(),
-          media_url: mediaUrl,
-          media_type: mediaType,
-          is_pinned: isPinned,
-          likes_count: 0,
-          comments_count: 0,
-        }]);
+        .insert([postData]);
 
       if (error) throw error;
 
