@@ -136,11 +136,11 @@ export default function CreatePostModal({
     setLoading(true);
 
     try {
-      let mediaUrl: string | null = null;
+      let imageUrl: string | null = null;
 
       // Upload de l'image si présente
       if (imageUri) {
-        mediaUrl = await uploadImage(imageUri);
+        imageUrl = await uploadImage(imageUri);
       }
 
       // Création du post
@@ -151,9 +151,9 @@ export default function CreatePostModal({
         is_pinned: isPinned,
       };
 
-      // Ajouter media_url seulement si présent
-      if (mediaUrl) {
-        postData.media_url = mediaUrl;
+      // Ajouter image_url seulement si présent
+      if (imageUrl) {
+        postData.image_url = imageUrl;
       }
 
       const { error } = await supabase

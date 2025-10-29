@@ -171,8 +171,8 @@ export default function PostDetailModal({
 
               <Text style={styles.postContent}>{post.content}</Text>
 
-              {post.media_url && (
-                <Image source={{ uri: post.media_url }} style={styles.postImage} />
+              {post.image_url && (
+                <Image source={{ uri: post.image_url }} style={styles.postImage} />
               )}
 
               {/* Actions */}

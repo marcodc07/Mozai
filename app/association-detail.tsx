@@ -247,7 +247,7 @@ export default function AssociationDetailScreen() {
   };
 
   const getMediaPosts = () => {
-    return posts.filter(p => p.media_type === 'photo' && p.media_url);
+    return posts.filter(p => p.image_url);
   };
 
   const openPostDetail = (post: any) => {
@@ -308,8 +308,8 @@ export default function AssociationDetailScreen() {
 
             <Text style={styles.postContent}>{post.content}</Text>
 
-            {post.media_url && (
-              <Image source={{ uri: post.media_url }} style={styles.postImage} />
+            {post.image_url && (
+              <Image source={{ uri: post.image_url }} style={styles.postImage} />
             )}
 
             <View style={styles.postFooter}>
@@ -459,8 +459,8 @@ export default function AssociationDetailScreen() {
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
                       {pinnedPosts.map(post => (
                         <TouchableOpacity key={post.id} style={styles.featuredCard} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
-                          {post.media_url && (
-                            <Image source={{ uri: post.media_url }} style={styles.featuredImage} />
+                          {post.image_url && (
+                            <Image source={{ uri: post.image_url }} style={styles.featuredImage} />
                           )}
                           <LinearGradient
                             colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -534,7 +534,7 @@ export default function AssociationDetailScreen() {
                 <View style={styles.mediaGrid}>
                   {getMediaPosts().map(post => (
                     <TouchableOpacity key={post.id} style={styles.mediaGridItem} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
-                      <Image source={{ uri: post.media_url }} style={styles.mediaGridImage} />
+                      <Image source={{ uri: post.image_url }} style={styles.mediaGridImage} />
                     </TouchableOpacity>
                   ))}
                 </View>
