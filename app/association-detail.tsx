@@ -1,3 +1,5 @@
+import AssociationLogo from '@/components/AssociationLogo';
+import EditAssociationModal from '@/components/EditAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import PostDetailModal from '@/components/PostDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Image,
   RefreshControl,
@@ -31,6 +34,7 @@ export default function AssociationDetailScreen() {
   const [members, setMembers] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -40,7 +44,6 @@ export default function AssociationDetailScreen() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventModalVisible, setEventModalVisible] = useState(false);
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
-  const [isOwner, setIsOwner] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
   const followButtonScale = new Animated.Value(1);
@@ -66,11 +69,9 @@ export default function AssociationDetailScreen() {
 
     setAssociation(assoData);
 
-    // Vérifier si l'utilisateur est le créateur
-    if (user) {
-      // TEMPORAIRE : Force à true pour tester
+    // Vérifier si l'utilisateur est le créateur/propriétaire
+    if (user && assoData.created_by === user.id) {
       setIsOwner(true);
-      // TODO: Remplacer par : setIsOwner(assoData.created_by === user.id);
     }
 
     const { data: pinnedData } = await supabase
@@ -91,7 +92,6 @@ export default function AssociationDetailScreen() {
 
     setPosts(postsData || []);
 
-    // Charger les likes de l'utilisateur
     if (user && postsData) {
       const postIds = postsData.map(p => p.id);
       const { data: likesData } = await supabase
@@ -183,7 +183,6 @@ export default function AssociationDetailScreen() {
     const isCurrentlyLiked = userLikes.has(postId);
     const newLikedState = !isCurrentlyLiked;
 
-    // Update local state immediately
     const newUserLikes = new Set(userLikes);
     if (newLikedState) {
       newUserLikes.add(postId);
@@ -192,7 +191,6 @@ export default function AssociationDetailScreen() {
     }
     setUserLikes(newUserLikes);
 
-    // Update posts count immediately
     setPosts(prevPosts =>
       prevPosts.map(p =>
         p.id === postId
@@ -209,7 +207,6 @@ export default function AssociationDetailScreen() {
       )
     );
 
-    // Update database
     if (newLikedState) {
       await supabase.from('post_likes').insert([{ post_id: postId, user_id: user.id }]);
     } else {
@@ -379,9 +376,12 @@ export default function AssociationDetailScreen() {
             </TouchableOpacity>
 
             <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoEmoji}>{association.logo_emoji}</Text>
-              </View>
+              <AssociationLogo
+                name={association.name}
+                logoUrl={association.profile_photo_url}
+                emoji={association.logo_emoji}
+                size={100}
+              />
             </View>
           </View>
 
@@ -407,13 +407,20 @@ export default function AssociationDetailScreen() {
               </View>
             </View>
 
+            {/* BOUTON SUIVRE OU MODIFIER */}
             <Animated.View style={{ transform: [{ scale: followButtonScale }] }}>
-              <TouchableOpacity onPress={toggleFollow} activeOpacity={0.8} style={styles.followButtonWrapper}>
+              <TouchableOpacity 
+                onPress={isOwner ? () => setEditModalVisible(true) : toggleFollow} 
+                activeOpacity={0.8} 
+                style={styles.followButtonWrapper}
+              >
                 <LinearGradient
-                  colors={isFollowing ? ['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)'] : ['#7566d9', '#5b4fc9']}
+                  colors={isOwner ? ['#7566d9', '#5b4fc9'] : isFollowing ? ['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)'] : ['#7566d9', '#5b4fc9']}
                   style={styles.followButton}
                 >
-                  <Text style={styles.followButtonText}>{isFollowing ? '✓ Suivi' : 'Suivre'}</Text>
+                  <Text style={styles.followButtonText}>
+                    {isOwner ? 'Modifier' : isFollowing ? '✓ Suivi' : 'Suivre'}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
@@ -474,19 +481,35 @@ export default function AssociationDetailScreen() {
 
                 <View style={styles.postsHeader}>
                   <Text style={styles.postsTitle}>Publications</Text>
-                  <TouchableOpacity
-                    style={styles.mediaButton}
-                    onPress={() => setShowMediaGrid(true)}
-                    activeOpacity={0.8}
-                  >
-                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                      <Rect x={3} y={3} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
-                      <Rect x={14} y={3} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
-                      <Rect x={3} y={14} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
-                      <Rect x={14} y={14} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
-                    </Svg>
-                    <Text style={styles.mediaButtonText}>Médias</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      style={styles.mediaButton}
+                      onPress={() => setShowMediaGrid(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                        <Rect x={3} y={3} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
+                        <Rect x={14} y={3} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
+                        <Rect x={3} y={14} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
+                        <Rect x={14} y={14} width={7} height={7} stroke="#7566d9" strokeWidth={2} />
+                      </Svg>
+                      <Text style={styles.mediaButtonText}>Médias</Text>
+                    </TouchableOpacity>
+
+                    {/* BOUTON + POUR ADMIN */}
+                    {isOwner && (
+                      <TouchableOpacity
+                        style={styles.addPostButton}
+                        onPress={() => Alert.alert('Bientôt', 'Créer une publication')}
+                        activeOpacity={0.8}
+                      >
+                        <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                          <Line x1={12} y1={5} x2={12} y2={19} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                          <Line x1={5} y1={12} x2={19} y2={12} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                        </Svg>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
 
                 {posts.length === 0 ? (
@@ -569,47 +592,84 @@ export default function AssociationDetailScreen() {
                   </View>
                 )}
 
-                {members.length > 0 && (
+                {/* MEMBRES DU BUREAU */}
+                {(members.length > 0 || isOwner) && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Membres du bureau</Text>
-                    <View style={styles.membersList}>
-                      {members.map(member => (
-                        <View key={member.id} style={styles.memberCard}>
-                          {member.photo_url ? (
-                            <Image source={{ uri: member.photo_url }} style={styles.memberPhoto} />
-                          ) : (
-                            <View style={styles.memberPhotoPlaceholder}>
-                              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                <Path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="#7566d9" strokeWidth={2} />
-                                <Circle cx={12} cy={7} r={4} stroke="#7566d9" strokeWidth={2} />
-                              </Svg>
-                            </View>
-                          )}
-                          <Text style={styles.memberName}>{member.name}</Text>
-                          <Text style={styles.memberRole}>{member.role}</Text>
-                        </View>
-                      ))}
+                    <View style={styles.membersHeader}>
+                      <Text style={styles.sectionTitle}>Membres du bureau</Text>
+                      {isOwner && members.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.addMemberSmallButton}
+                          onPress={() => Alert.alert('Bientôt', 'Ajouter un membre du bureau')}
+                          activeOpacity={0.8}
+                        >
+                          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                            <Line x1={12} y1={5} x2={12} y2={19} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                            <Line x1={5} y1={12} x2={19} y2={12} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                          </Svg>
+                        </TouchableOpacity>
+                      )}
                     </View>
+
+                    {members.length === 0 && isOwner ? (
+                      <TouchableOpacity
+                        style={styles.addMembersButton}
+                        onPress={() => Alert.alert('Bientôt', 'Ajouter des membres du bureau')}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)']}
+                          style={styles.addMembersGradient}
+                        >
+                          <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                            <Line x1={12} y1={5} x2={12} y2={19} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                            <Line x1={5} y1={12} x2={19} y2={12} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                          </Svg>
+                          <Text style={styles.addMembersText}>Ajouter des membres</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.membersList}>
+                        {members.map(member => (
+                          <View key={member.id} style={styles.memberCard}>
+                            {member.photo_url ? (
+                              <Image source={{ uri: member.photo_url }} style={styles.memberPhoto} />
+                            ) : (
+                              <View style={styles.memberPhotoPlaceholder}>
+                                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                                  <Path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" stroke="#7566d9" strokeWidth={2} />
+                                  <Circle cx={12} cy={7} r={4} stroke="#7566d9" strokeWidth={2} />
+                                </Svg>
+                              </View>
+                            )}
+                            <Text style={styles.memberName}>{member.name}</Text>
+                            <Text style={styles.memberRole}>{member.role}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 )}
 
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Rejoindre l'association</Text>
-                  <View style={[styles.recruitmentCard, association.recruitment_status === 'open' && styles.recruitmentCardOpen]}>
-                    <View style={styles.recruitmentHeader}>
-                      <View style={[styles.statusBadge, association.recruitment_status === 'open' ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
-                        <Text style={styles.statusText}>
-                          {association.recruitment_status === 'open' ? '✓ Ouvert' : '✕ Fermé'}
-                        </Text>
+                {isOwner && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Rejoindre l'association</Text>
+                    <View style={[styles.recruitmentCard, association.recruitment_open && styles.recruitmentCardOpen]}>
+                      <View style={styles.recruitmentHeader}>
+                        <View style={[styles.statusBadge, association.recruitment_open ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
+                          <Text style={styles.statusText}>
+                            {association.recruitment_open ? '✓ Ouvert' : '✕ Fermé'}
+                          </Text>
+                        </View>
                       </View>
+                      <Text style={styles.recruitmentMessage}>
+                        {association.recruitment_description || (association.recruitment_open 
+                          ? 'Nous recherchons de nouveaux membres motivés !' 
+                          : 'Les recrutements sont actuellement fermés. Suivez-nous pour être informé de la prochaine session !')}
+                      </Text>
                     </View>
-                    <Text style={styles.recruitmentMessage}>
-                      {association.recruitment_status === 'open' 
-                        ? association.recruitment_message 
-                        : 'Les recrutements sont actuellement fermés. Suivez-nous pour être informé de la prochaine session !'}
-                    </Text>
                   </View>
-                </View>
+                )}
 
                 {(association.email || association.instagram || association.website) && (
                   <View style={styles.section}>
@@ -653,9 +713,25 @@ export default function AssociationDetailScreen() {
             {/* ÉVÉNEMENTS */}
             {activeTab === 'events' && (
               <View>
-                <Text style={styles.eventsTitle}>
-                  {showPastEvents ? 'Événements passés' : 'Événements à venir'}
-                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={styles.eventsTitle}>
+                    {showPastEvents ? 'Événements passés' : 'Événements à venir'}
+                  </Text>
+                  
+                  {/* BOUTON + POUR ADMIN */}
+                  {isOwner && (
+                    <TouchableOpacity
+                      style={styles.addPostButton}
+                      onPress={() => Alert.alert('Bientôt', 'Créer un événement')}
+                      activeOpacity={0.8}
+                    >
+                      <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                        <Line x1={12} y1={5} x2={12} y2={19} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                        <Line x1={5} y1={12} x2={19} y2={12} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                      </Svg>
+                    </TouchableOpacity>
+                  )}
+                </View>
 
                 {getFilteredEvents().length === 0 ? (
                   <View style={styles.emptyState}>
@@ -827,6 +903,25 @@ export default function AssociationDetailScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* BOUTON + FLOTTANT (UNIQUEMENT ONGLET PUBLICATIONS - ADMIN SEULEMENT) */}
+        {isOwner && activeTab === 'posts' && (
+          <TouchableOpacity
+            style={styles.floatingAddButton}
+            onPress={() => Alert.alert('Bientôt', 'Créer une publication')}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={['#7566d9', '#5b4fc9']}
+              style={styles.floatingAddGradient}
+            >
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                <Line x1={12} y1={5} x2={12} y2={19} stroke="#ffffff" strokeWidth={2.5} strokeLinecap="round" />
+                <Line x1={5} y1={12} x2={19} y2={12} stroke="#ffffff" strokeWidth={2.5} strokeLinecap="round" />
+              </Svg>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </LinearGradient>
 
       {/* Modals */}
@@ -854,6 +949,18 @@ export default function AssociationDetailScreen() {
           loadAssociationData();
         }}
       />
+
+      {/* MODAL MODIFICATION */}
+      {association && (
+        <EditAssociationModal
+          visible={editModalVisible}
+          association={association}
+          onClose={() => setEditModalVisible(false)}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -876,20 +983,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  logoContainer: { position: 'absolute', bottom: -40, left: 20 },
-  logo: {
-    width: 100,
-    height: 100,
+  logoContainer: { 
+    position: 'absolute', 
+    bottom: -50, 
+    left: 20,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 4,
     borderColor: '#23243b',
+    overflow: 'hidden',
   },
-  logoEmoji: { fontSize: 48 },
 
-  mainInfo: { paddingTop: 50, paddingHorizontal: 20, paddingBottom: 20 },
+  mainInfo: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20 },
   assoName: { fontSize: 28, fontWeight: '800', color: '#ffffff', marginBottom: 8 },
   shortDescription: { fontSize: 15, color: 'rgba(255, 255, 255, 0.7)', lineHeight: 22, marginBottom: 20 },
 
@@ -923,7 +1027,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700', color: 'rgba(255, 255, 255, 0.6)' },
   tabTextActive: { color: '#ffffff' },
 
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  content: { paddingHorizontal: 20, paddingBottom: 100 },
 
   featuredSection: { marginBottom: 28 },
   featuredTitle: { fontSize: 18, fontWeight: '800', color: '#ffffff', marginBottom: 14 },
@@ -999,6 +1103,17 @@ const styles = StyleSheet.create({
   },
   mediaButtonText: { fontSize: 13, fontWeight: '700', color: '#7566d9' },
   
+  addPostButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(117, 102, 217, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(117, 102, 217, 0.3)',
+  },
+
   backToFeedButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1020,6 +1135,42 @@ const styles = StyleSheet.create({
   section: { marginBottom: 28 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#ffffff', marginBottom: 14 },
   longDescription: { fontSize: 15, color: 'rgba(255, 255, 255, 0.8)', lineHeight: 24 },
+
+  membersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  addMemberSmallButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(117, 102, 217, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(117, 102, 217, 0.3)',
+  },
+  addMembersButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(117, 102, 217, 0.3)',
+  },
+  addMembersGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 18,
+  },
+  addMembersText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#7566d9',
+  },
 
   membersList: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   memberCard: { width: '31%', alignItems: 'center' },
@@ -1055,7 +1206,7 @@ const styles = StyleSheet.create({
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   contactText: { fontSize: 14, fontWeight: '600', color: '#7566d9' },
 
-  eventsTitle: { fontSize: 20, fontWeight: '800', color: '#ffffff', marginBottom: 16 },
+  eventsTitle: { fontSize: 20, fontWeight: '800', color: '#ffffff' },
   
   eventCardNew: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -1153,23 +1304,26 @@ const styles = StyleSheet.create({
 
   emptyState: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 15, color: 'rgba(255, 255, 255, 0.5)' },
-  addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(117, 102, 217, 0.15)',
+
+  // BOUTON FLOTTANT DISCRET
+  floatingAddButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    shadowColor: '#7566d9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingAddGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(117, 102, 217, 0.3)',
-  },
-  addMemberCard: {
-    borderWidth: 2,
-    borderColor: 'rgba(117, 102, 217, 0.3)',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(117, 102, 217, 0.05)',
-  },
-  addMemberAvatar: {
-    backgroundColor: 'rgba(117, 102, 217, 0.15)',
   },
 });
