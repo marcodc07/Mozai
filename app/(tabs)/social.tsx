@@ -1,5 +1,6 @@
 import AssociationLogo from '@/components/AssociationLogo';
 import CreateAssociationModal from '@/components/CreateAssociationModal';
+import CreateEventModal from '@/components/CreateEventModal';
 import EditAssociationModal from '@/components/EditAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import TicketDetailModal from '@/components/TicketDetailModal';
@@ -27,14 +28,12 @@ export default function SocialScreen() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [createAssociationModalVisible, setCreateAssociationModalVisible] = useState(false);
+  const [createEventModalVisible, setCreateEventModalVisible] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myAssociations, setMyAssociations] = useState<any[]>([]);
   const [editModalVisible, setEditModalVisible] = useState(false);
 const [selectedAssoToEdit, setSelectedAssoToEdit] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
-  const [priceFilter, setPriceFilter] = useState('all'); // all, free, paid
-  const [assoFilter, setAssoFilter] = useState('all'); // all, ou id d'asso
 
   // Charger les événements
   const loadEvents = async () => {
@@ -252,43 +251,9 @@ const loadAdminStatus = async () => {
     );
   };
 
-  // Filtrer les événements
+  // Pour l'instant on retourne tous les événements
   const getFilteredEvents = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return events.filter(event => {
-      // Filtre par date
-      if (dateFilter !== 'all') {
-        const eventDate = new Date(event.date);
-        eventDate.setHours(0, 0, 0, 0);
-
-        if (dateFilter === 'today') {
-          if (eventDate.getTime() !== today.getTime()) return false;
-        } else if (dateFilter === 'week') {
-          const nextWeek = new Date(today);
-          nextWeek.setDate(today.getDate() + 7);
-          if (eventDate < today || eventDate > nextWeek) return false;
-        } else if (dateFilter === 'month') {
-          const nextMonth = new Date(today);
-          nextMonth.setMonth(today.getMonth() + 1);
-          if (eventDate < today || eventDate > nextMonth) return false;
-        }
-      }
-
-      // Filtre par prix (à implémenter si nécessaire selon structure des données)
-      if (priceFilter !== 'all') {
-        // Cette partie dépendra de comment le prix est stocké dans les événements
-        // Pour l'instant on la laisse pour plus tard
-      }
-
-      // Filtre par association
-      if (assoFilter !== 'all') {
-        if (event.association_id !== assoFilter) return false;
-      }
-
-      return true;
-    });
+    return events;
   };
 
   const groups = [
@@ -392,50 +357,25 @@ const loadAdminStatus = async () => {
           {/* ÉVÉNEMENTS TAB */}
           {activeTab === 'events' && (
             <View style={styles.section}>
-              {/* FILTRES */}
-              <View style={styles.filtersContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-                  <TouchableOpacity
-                    style={[styles.filterChip, dateFilter === 'all' && styles.filterChipActive]}
-                    onPress={() => setDateFilter('all')}
-                    activeOpacity={0.7}
+              {/* BOUTON CRÉER ÉVÉNEMENT */}
+              {isAdmin && (
+                <TouchableOpacity
+                  onPress={() => setCreateEventModalVisible(true)}
+                  activeOpacity={0.8}
+                  style={styles.createEventButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)']}
+                    style={styles.createEventGradient}
                   >
-                    <Text style={[styles.filterChipText, dateFilter === 'all' && styles.filterChipTextActive]}>
-                      Tous
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.filterChip, dateFilter === 'today' && styles.filterChipActive]}
-                    onPress={() => setDateFilter('today')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.filterChipText, dateFilter === 'today' && styles.filterChipTextActive]}>
-                      Aujourd'hui
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.filterChip, dateFilter === 'week' && styles.filterChipActive]}
-                    onPress={() => setDateFilter('week')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.filterChipText, dateFilter === 'week' && styles.filterChipTextActive]}>
-                      Cette semaine
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.filterChip, dateFilter === 'month' && styles.filterChipActive]}
-                    onPress={() => setDateFilter('month')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.filterChipText, dateFilter === 'month' && styles.filterChipTextActive]}>
-                      Ce mois
-                    </Text>
-                  </TouchableOpacity>
-                </ScrollView>
-              </View>
+                    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                      <Line x1={12} y1={5} x2={12} y2={19} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                      <Line x1={5} y1={12} x2={19} y2={12} stroke="#7566d9" strokeWidth={2} strokeLinecap="round" />
+                    </Svg>
+                    <Text style={styles.createEventText}>Créer un événement</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
 
               {/* Mes Billets - Aperçu */}
               {myTickets.length > 0 && (
@@ -566,14 +506,6 @@ const loadAdminStatus = async () => {
                       </View>
 
                       <View style={styles.eventStats}>
-                        <View style={styles.eventStat}>
-                          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                            <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-                            <Circle cx={9} cy={7} r={4} stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
-                            <Path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="rgba(255,255,255,0.7)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-                          </Svg>
-                          <Text style={styles.eventStatText}>{event.participants_count} participants</Text>
-                        </View>
                         <View style={styles.eventStat}>
                           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                             <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="rgba(255,255,255,0.7)" strokeWidth={2}/>
@@ -963,6 +895,15 @@ const loadAdminStatus = async () => {
     }}
   />
 )}
+
+{/* Modal Créer Événement */}
+<CreateEventModal
+  visible={createEventModalVisible}
+  onClose={() => setCreateEventModalVisible(false)}
+  onSuccess={() => {
+    loadEvents();
+  }}
+/>
     </View>
   );
 }
@@ -1535,34 +1476,26 @@ searchInput: {
   fontSize: 15,
   color: '#ffffff',
 },
-// Filtres
-filtersContainer: {
+// Bouton créer événement
+createEventButton: {
+  borderRadius: 14,
+  overflow: 'hidden',
+  borderWidth: 2,
+  borderStyle: 'dashed',
+  borderColor: 'rgba(117, 102, 217, 0.3)',
   marginBottom: 20,
 },
-filtersScroll: {
-  gap: 8,
-  paddingRight: 20,
+createEventGradient: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  paddingVertical: 16,
 },
-filterChip: {
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  borderRadius: 12,
-  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  borderWidth: 1,
-  borderColor: 'rgba(255, 255, 255, 0.1)',
-},
-filterChipActive: {
-  backgroundColor: 'rgba(117, 102, 217, 0.2)',
-  borderColor: 'rgba(117, 102, 217, 0.4)',
-},
-filterChipText: {
-  fontSize: 14,
-  fontWeight: '600',
-  color: 'rgba(255, 255, 255, 0.6)',
-},
-filterChipTextActive: {
-  color: '#7566d9',
+createEventText: {
+  fontSize: 15,
   fontWeight: '700',
+  color: '#7566d9',
 },
 
 });

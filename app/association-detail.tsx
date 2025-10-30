@@ -1036,34 +1036,6 @@ export default function AssociationDetailScreen() {
                               <View style={styles.eventStat}>
                                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                                   <Path
-                                    d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"
-                                    stroke="rgba(255,255,255,0.7)"
-                                    strokeWidth={2}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                  <Circle
-                                    cx={9}
-                                    cy={7}
-                                    r={4}
-                                    stroke="rgba(255,255,255,0.7)"
-                                    strokeWidth={2}
-                                  />
-                                  <Path
-                                    d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
-                                    stroke="rgba(255,255,255,0.7)"
-                                    strokeWidth={2}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </Svg>
-                                <Text style={styles.eventStatText}>
-                                  {event.participants_count} participants
-                                </Text>
-                              </View>
-                              <View style={styles.eventStat}>
-                                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                                  <Path
                                     d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"
                                     stroke="rgba(255,255,255,0.7)"
                                     strokeWidth={2}
