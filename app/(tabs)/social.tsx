@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
 
@@ -31,6 +31,10 @@ export default function SocialScreen() {
   const [myAssociations, setMyAssociations] = useState<any[]>([]);
   const [editModalVisible, setEditModalVisible] = useState(false);
 const [selectedAssoToEdit, setSelectedAssoToEdit] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
+  const [priceFilter, setPriceFilter] = useState('all'); // all, free, paid
+  const [assoFilter, setAssoFilter] = useState('all'); // all, ou id d'asso
 
   // Charger les événements
   const loadEvents = async () => {
@@ -237,6 +241,56 @@ const loadAdminStatus = async () => {
     return 'À venir';
   };
 
+  // Filtrer les associations par recherche
+  const getFilteredAssociations = () => {
+    if (!searchQuery.trim()) return associations;
+
+    const query = searchQuery.toLowerCase().trim();
+    return associations.filter(asso =>
+      asso.name.toLowerCase().includes(query) ||
+      asso.short_description?.toLowerCase().includes(query)
+    );
+  };
+
+  // Filtrer les événements
+  const getFilteredEvents = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return events.filter(event => {
+      // Filtre par date
+      if (dateFilter !== 'all') {
+        const eventDate = new Date(event.date);
+        eventDate.setHours(0, 0, 0, 0);
+
+        if (dateFilter === 'today') {
+          if (eventDate.getTime() !== today.getTime()) return false;
+        } else if (dateFilter === 'week') {
+          const nextWeek = new Date(today);
+          nextWeek.setDate(today.getDate() + 7);
+          if (eventDate < today || eventDate > nextWeek) return false;
+        } else if (dateFilter === 'month') {
+          const nextMonth = new Date(today);
+          nextMonth.setMonth(today.getMonth() + 1);
+          if (eventDate < today || eventDate > nextMonth) return false;
+        }
+      }
+
+      // Filtre par prix (à implémenter si nécessaire selon structure des données)
+      if (priceFilter !== 'all') {
+        // Cette partie dépendra de comment le prix est stocké dans les événements
+        // Pour l'instant on la laisse pour plus tard
+      }
+
+      // Filtre par association
+      if (assoFilter !== 'all') {
+        if (event.association_id !== assoFilter) return false;
+      }
+
+      return true;
+    });
+  };
+
   const groups = [
     {
       id: 1,
@@ -338,6 +392,51 @@ const loadAdminStatus = async () => {
           {/* ÉVÉNEMENTS TAB */}
           {activeTab === 'events' && (
             <View style={styles.section}>
+              {/* FILTRES */}
+              <View style={styles.filtersContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+                  <TouchableOpacity
+                    style={[styles.filterChip, dateFilter === 'all' && styles.filterChipActive]}
+                    onPress={() => setDateFilter('all')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.filterChipText, dateFilter === 'all' && styles.filterChipTextActive]}>
+                      Tous
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, dateFilter === 'today' && styles.filterChipActive]}
+                    onPress={() => setDateFilter('today')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.filterChipText, dateFilter === 'today' && styles.filterChipTextActive]}>
+                      Aujourd'hui
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, dateFilter === 'week' && styles.filterChipActive]}
+                    onPress={() => setDateFilter('week')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.filterChipText, dateFilter === 'week' && styles.filterChipTextActive]}>
+                      Cette semaine
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.filterChip, dateFilter === 'month' && styles.filterChipActive]}
+                    onPress={() => setDateFilter('month')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.filterChipText, dateFilter === 'month' && styles.filterChipTextActive]}>
+                      Ce mois
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+
               {/* Mes Billets - Aperçu */}
               {myTickets.length > 0 && (
                 <View style={styles.myTicketsSection}>
@@ -421,7 +520,7 @@ const loadAdminStatus = async () => {
               )}
 
               {/* Liste des événements */}
-              {events.map((event) => (
+              {getFilteredEvents().map((event) => (
                 <TouchableOpacity 
                   key={event.id} 
                   activeOpacity={0.8}
@@ -516,6 +615,27 @@ const loadAdminStatus = async () => {
           {/* ASSOCIATIONS TAB */}
           {activeTab === 'assos' && (
             <View style={styles.section}>
+              {/* BARRE DE RECHERCHE */}
+              <View style={styles.searchContainer}>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Circle cx={11} cy={11} r={8} stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} />
+                  <Path d="M21 21l-4.35-4.35" stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} strokeLinecap="round" />
+                </Svg>
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Rechercher une association..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                      <Path d="M18 6L6 18M6 6l12 12" stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} strokeLinecap="round" />
+                    </Svg>
+                  </TouchableOpacity>
+                )}
+              </View>
 
                         {/* MES ASSOCIATIONS */}
 {isAdmin && myAssociations.length > 0 && (
@@ -608,7 +728,7 @@ const loadAdminStatus = async () => {
 
               <Text style={styles.sectionSubtitle}>Associations suivies</Text>
 
-              {associations.filter(a => followedAssos.includes(a.id)).map((asso) => (
+              {getFilteredAssociations().filter(a => followedAssos.includes(a.id)).map((asso) => (
   <TouchableOpacity
     key={asso.id}
     activeOpacity={0.9}
@@ -671,7 +791,7 @@ const loadAdminStatus = async () => {
 
               <Text style={styles.sectionSubtitle}>Toutes les associations</Text>
 
-              {associations.filter(a => !followedAssos.includes(a.id)).map((asso) => (
+              {getFilteredAssociations().filter(a => !followedAssos.includes(a.id)).map((asso) => (
   <TouchableOpacity
     key={asso.id}
     activeOpacity={0.9}
@@ -1398,6 +1518,51 @@ modifyButtonText: {
   fontSize: 14,
   fontWeight: '700',
   color: '#7566d9',
+},
+// Barre de recherche
+searchContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  borderRadius: 14,
+  paddingHorizontal: 14,
+  paddingVertical: 12,
+  marginBottom: 20,
+  gap: 10,
+},
+searchInput: {
+  flex: 1,
+  fontSize: 15,
+  color: '#ffffff',
+},
+// Filtres
+filtersContainer: {
+  marginBottom: 20,
+},
+filtersScroll: {
+  gap: 8,
+  paddingRight: 20,
+},
+filterChip: {
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  borderRadius: 12,
+  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+},
+filterChipActive: {
+  backgroundColor: 'rgba(117, 102, 217, 0.2)',
+  borderColor: 'rgba(117, 102, 217, 0.4)',
+},
+filterChipText: {
+  fontSize: 14,
+  fontWeight: '600',
+  color: 'rgba(255, 255, 255, 0.6)',
+},
+filterChipTextActive: {
+  color: '#7566d9',
+  fontWeight: '700',
 },
 
 });
