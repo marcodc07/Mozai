@@ -2,7 +2,13 @@ import AddMemberModal from '@/components/AddMemberModal';
 import AssociationLogo from '@/components/AssociationLogo';
 import CreatePostModal from '@/components/CreatePostModal';
 import EditAssociationModal from '@/components/EditAssociationModal';
+import EditEventModal from '@/components/EditEventModal';
+import EditMemberModal from '@/components/EditMemberModal';
+import EditPostModal from '@/components/EditPostModal';
+import EventActionsSheet from '@/components/EventActionsSheet';
 import EventDetailModal from '@/components/EventDetailModal';
+import MemberActionsSheet from '@/components/MemberActionsSheet';
+import PostActionsSheet from '@/components/PostActionsSheet';
 import PostDetailModal from '@/components/PostDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAssociationPermissions } from '@/hooks/useAssociationPermissions';
@@ -52,6 +58,15 @@ export default function AssociationDetailScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
   const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
+  const [postActionsSheetVisible, setPostActionsSheetVisible] = useState(false);
+  const [selectedPostForActions, setSelectedPostForActions] = useState<any>(null);
+  const [editPostModalVisible, setEditPostModalVisible] = useState(false);
+  const [eventActionsSheetVisible, setEventActionsSheetVisible] = useState(false);
+  const [selectedEventForActions, setSelectedEventForActions] = useState<any>(null);
+  const [editEventModalVisible, setEditEventModalVisible] = useState(false);
+  const [memberActionsSheetVisible, setMemberActionsSheetVisible] = useState(false);
+  const [selectedMemberForActions, setSelectedMemberForActions] = useState<any>(null);
+  const [editMemberModalVisible, setEditMemberModalVisible] = useState(false);
 
   const followButtonScale = new Animated.Value(1);
 
@@ -216,6 +231,183 @@ export default function AssociationDetailScreen() {
     }
   };
 
+  const handlePostLongPress = (post: any) => {
+    setSelectedPostForActions(post);
+    setPostActionsSheetVisible(true);
+  };
+
+  const handleDeletePost = async () => {
+    if (!selectedPostForActions) return;
+
+    Alert.alert(
+      'Supprimer la publication',
+      'Êtes-vous sûr de vouloir supprimer cette publication ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('association_posts')
+                .delete()
+                .eq('id', selectedPostForActions.id);
+
+              if (error) throw error;
+
+              Alert.alert('Succès', 'Publication supprimée');
+              loadAssociationData();
+            } catch (error: any) {
+              console.error('Erreur suppression post:', error);
+              Alert.alert('Erreur', error.message || 'Impossible de supprimer la publication');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTogglePin = async () => {
+    if (!selectedPostForActions) return;
+
+    const newPinnedState = !selectedPostForActions.is_pinned;
+
+    // Si on essaie d'épingler et qu'il y a déjà 3 posts épinglés
+    if (newPinnedState && pinnedPosts.length >= 3) {
+      Alert.alert(
+        'Limite atteinte',
+        'Vous ne pouvez épingler que 3 publications maximum. Dépinglez-en une avant d\'en épingler une nouvelle.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('association_posts')
+        .update({ is_pinned: newPinnedState })
+        .eq('id', selectedPostForActions.id);
+
+      if (error) throw error;
+
+      Alert.alert('Succès', newPinnedState ? 'Publication épinglée' : 'Publication dépinglée');
+      loadAssociationData();
+    } catch (error: any) {
+      console.error('Erreur toggle pin:', error);
+      Alert.alert('Erreur', error.message || 'Impossible de modifier l\'épinglage');
+    }
+  };
+
+  const handleEventLongPress = (event: any) => {
+    setSelectedEventForActions(event);
+    setEventActionsSheetVisible(true);
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!selectedEventForActions) return;
+
+    Alert.alert(
+      'Supprimer l\'événement',
+      'Êtes-vous sûr de vouloir supprimer cet événement ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('events')
+                .delete()
+                .eq('id', selectedEventForActions.id);
+
+              if (error) throw error;
+
+              Alert.alert('Succès', 'Événement supprimé');
+              loadAssociationData();
+            } catch (error: any) {
+              console.error('Erreur suppression événement:', error);
+              Alert.alert('Erreur', error.message || 'Impossible de supprimer l\'événement');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleCancelEvent = async () => {
+    if (!selectedEventForActions) return;
+
+    const newCancelledState = !selectedEventForActions.is_cancelled;
+
+    Alert.alert(
+      newCancelledState ? 'Annuler l\'événement' : 'Réactiver l\'événement',
+      newCancelledState
+        ? 'Êtes-vous sûr de vouloir annuler cet événement ? Les participants seront notifiés.'
+        : 'Êtes-vous sûr de vouloir réactiver cet événement ?',
+      [
+        { text: 'Non', style: 'cancel' },
+        {
+          text: 'Oui',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('events')
+                .update({ is_cancelled: newCancelledState })
+                .eq('id', selectedEventForActions.id);
+
+              if (error) throw error;
+
+              Alert.alert('Succès', newCancelledState ? 'Événement annulé' : 'Événement réactivé');
+              loadAssociationData();
+            } catch (error: any) {
+              console.error('Erreur toggle cancel:', error);
+              Alert.alert('Erreur', error.message || 'Impossible de modifier l\'événement');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMemberPress = (member: any) => {
+    setSelectedMemberForActions(member);
+    setMemberActionsSheetVisible(true);
+  };
+
+  const handleRemoveMember = async () => {
+    if (!selectedMemberForActions) return;
+
+    Alert.alert(
+      'Retirer du bureau',
+      `Êtes-vous sûr de vouloir retirer ${selectedMemberForActions.name} du bureau ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Retirer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('association_members')
+                .delete()
+                .eq('id', selectedMemberForActions.id);
+
+              if (error) throw error;
+
+              Alert.alert('Succès', 'Membre retiré du bureau');
+              loadAssociationData();
+            } catch (error: any) {
+              console.error('Erreur retrait membre:', error);
+              Alert.alert('Erreur', error.message || 'Impossible de retirer le membre');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatPostDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -281,7 +473,12 @@ export default function AssociationDetailScreen() {
     const isLiked = userLikes.has(post.id);
 
     return (
-      <TouchableOpacity key={post.id} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
+      <TouchableOpacity
+        key={post.id}
+        activeOpacity={0.9}
+        onPress={() => openPostDetail(post)}
+        onLongPress={() => permissions.canEditPost && handlePostLongPress(post)}
+      >
         <View style={[styles.postCard, isPinned && styles.pinnedPostCard]}>
           <LinearGradient
             colors={isPinned ? ['rgba(117, 102, 217, 0.15)', 'rgba(117, 102, 217, 0.05)'] : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.04)']}
@@ -458,7 +655,13 @@ export default function AssociationDetailScreen() {
                     <Text style={styles.featuredTitle}>À la une</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
                       {pinnedPosts.map(post => (
-                        <TouchableOpacity key={post.id} style={styles.featuredCard} activeOpacity={0.9} onPress={() => openPostDetail(post)}>
+                        <TouchableOpacity
+                          key={post.id}
+                          style={styles.featuredCard}
+                          activeOpacity={0.9}
+                          onPress={() => openPostDetail(post)}
+                          onLongPress={() => permissions.canEditPost && handlePostLongPress(post)}
+                        >
                           {post.image_url && (
                             <Image source={{ uri: post.image_url }} style={styles.featuredImage} />
                           )}
@@ -626,7 +829,12 @@ export default function AssociationDetailScreen() {
                     ) : (
                       <View style={styles.membersList}>
                         {members.map(member => (
-                          <View key={member.id} style={styles.memberCard}>
+                          <TouchableOpacity
+                            key={member.id}
+                            style={styles.memberCard}
+                            activeOpacity={0.8}
+                            onPress={() => permissions.canManageMembers && handleMemberPress(member)}
+                          >
                             {member.photo_url ? (
                               <Image source={{ uri: member.photo_url }} style={styles.memberPhoto} />
                             ) : (
@@ -639,7 +847,7 @@ export default function AssociationDetailScreen() {
                             )}
                             <Text style={styles.memberName}>{member.name}</Text>
                             <Text style={styles.memberRole}>{member.role}</Text>
-                          </View>
+                          </TouchableOpacity>
                         ))}
                       </View>
                     )}
@@ -743,6 +951,7 @@ export default function AssociationDetailScreen() {
                         setSelectedEvent(event);
                         setEventModalVisible(true);
                       }}
+                      onLongPress={() => permissions.canEditEvent && handleEventLongPress(event)}
                     >
                       <View style={styles.eventCardNew}>
                         <LinearGradient
@@ -978,6 +1187,112 @@ export default function AssociationDetailScreen() {
           associationId={association.id}
           existingMembersCount={members.length}
           onClose={() => setAddMemberModalVisible(false)}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
+
+      {/* MODAL ACTIONS POST */}
+      {selectedPostForActions && (
+        <PostActionsSheet
+          visible={postActionsSheetVisible}
+          postId={selectedPostForActions.id}
+          isPinned={selectedPostForActions.is_pinned}
+          canEdit={permissions.canEditPost}
+          canDelete={permissions.canDeletePost}
+          canPin={permissions.canPinPost}
+          onClose={() => {
+            setPostActionsSheetVisible(false);
+            setSelectedPostForActions(null);
+          }}
+          onEdit={() => {
+            setEditPostModalVisible(true);
+          }}
+          onDelete={handleDeletePost}
+          onTogglePin={handleTogglePin}
+        />
+      )}
+
+      {/* MODAL ÉDITION POST */}
+      {selectedPostForActions && (
+        <EditPostModal
+          visible={editPostModalVisible}
+          post={selectedPostForActions}
+          onClose={() => {
+            setEditPostModalVisible(false);
+            setSelectedPostForActions(null);
+          }}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
+
+      {/* MODAL ACTIONS ÉVÉNEMENT */}
+      {selectedEventForActions && (
+        <EventActionsSheet
+          visible={eventActionsSheetVisible}
+          eventId={selectedEventForActions.id}
+          isCancelled={selectedEventForActions.is_cancelled}
+          canEdit={permissions.canEditEvent}
+          canDelete={permissions.canDeleteEvent}
+          canCancel={permissions.canCancelEvent}
+          onClose={() => {
+            setEventActionsSheetVisible(false);
+            setSelectedEventForActions(null);
+          }}
+          onEdit={() => {
+            setEditEventModalVisible(true);
+          }}
+          onDelete={handleDeleteEvent}
+          onToggleCancel={handleToggleCancelEvent}
+        />
+      )}
+
+      {/* MODAL ÉDITION ÉVÉNEMENT */}
+      {selectedEventForActions && (
+        <EditEventModal
+          visible={editEventModalVisible}
+          event={selectedEventForActions}
+          onClose={() => {
+            setEditEventModalVisible(false);
+            setSelectedEventForActions(null);
+          }}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
+
+      {/* MODAL ACTIONS MEMBRE */}
+      {selectedMemberForActions && (
+        <MemberActionsSheet
+          visible={memberActionsSheetVisible}
+          memberId={selectedMemberForActions.id}
+          memberName={selectedMemberForActions.name}
+          canEdit={permissions.canManageMembers}
+          canRemove={permissions.canManageMembers}
+          onClose={() => {
+            setMemberActionsSheetVisible(false);
+            setSelectedMemberForActions(null);
+          }}
+          onEdit={() => {
+            setEditMemberModalVisible(true);
+          }}
+          onRemove={handleRemoveMember}
+        />
+      )}
+
+      {/* MODAL ÉDITION MEMBRE */}
+      {selectedMemberForActions && (
+        <EditMemberModal
+          visible={editMemberModalVisible}
+          member={selectedMemberForActions}
+          onClose={() => {
+            setEditMemberModalVisible(false);
+            setSelectedMemberForActions(null);
+          }}
           onSuccess={() => {
             loadAssociationData();
           }}
