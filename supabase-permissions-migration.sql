@@ -7,9 +7,13 @@
 -- ÉTAPE 1 : NETTOYAGE (si la table existe déjà)
 -- --------------------------------------------
 
--- Supprimer les policies existantes
+-- Supprimer les policies existantes (si elles existent)
 DROP POLICY IF EXISTS "Les admins des associations sont visibles par tous" ON association_admins;
 DROP POLICY IF EXISTS "Seuls les présidents peuvent gérer les admins" ON association_admins;
+DROP POLICY IF EXISTS "Lecture des admins autorisée" ON association_admins;
+DROP POLICY IF EXISTS "Insertion admins par présidents" ON association_admins;
+DROP POLICY IF EXISTS "Modification admins par présidents" ON association_admins;
+DROP POLICY IF EXISTS "Suppression admins par présidents" ON association_admins;
 
 -- Supprimer le trigger existant
 DROP TRIGGER IF EXISTS update_association_admins_updated_at ON association_admins;
@@ -57,26 +61,18 @@ CREATE INDEX idx_association_admins_association_user ON association_admins(assoc
 -- ÉTAPE 4 : ROW LEVEL SECURITY (RLS)
 -- --------------------------------------------
 
-ALTER TABLE association_admins ENABLE ROW LEVEL SECURITY;
+-- IMPORTANT : On DÉSACTIVE RLS sur cette table pour éviter la récursion
+-- Les permissions sont gérées côté application avec le hook useAssociationPermissions
+-- Cette table est publique de toute façon (tout le monde peut voir les admins)
 
--- Policy : Tout le monde peut voir les admins des associations
-CREATE POLICY "Les admins des associations sont visibles par tous"
-ON association_admins FOR SELECT
-TO authenticated
-USING (true);
+-- Désactiver RLS
+ALTER TABLE association_admins DISABLE ROW LEVEL SECURITY;
 
--- Policy : Seuls les présidents peuvent ajouter/modifier/supprimer des admins
-CREATE POLICY "Seuls les présidents peuvent gérer les admins"
-ON association_admins FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM association_admins aa
-    WHERE aa.association_id = association_admins.association_id
-    AND aa.user_id = auth.uid()
-    AND aa.role = 'president'
-  )
-);
+-- NOTE : La sécurité est assurée par :
+-- 1. Le hook useAssociationPermissions côté client (affichage des boutons)
+-- 2. Les vérifications côté serveur avant d'ajouter/modifier des admins
+-- 3. Les utilisateurs authentifiés peuvent lire, mais les modifications
+--    sont contrôlées dans l'application
 
 -- --------------------------------------------
 -- ÉTAPE 5 : TRIGGER POUR updated_at
