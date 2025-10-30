@@ -5,6 +5,7 @@ import EditAssociationModal from '@/components/EditAssociationModal';
 import EventDetailModal from '@/components/EventDetailModal';
 import PostDetailModal from '@/components/PostDetailModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAssociationPermissions } from '@/hooks/useAssociationPermissions';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -27,7 +28,10 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 export default function AssociationDetailScreen() {
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
-  
+
+  // Hook de permissions
+  const permissions = useAssociationPermissions(id as string);
+
   const [association, setAssociation] = useState<any>(null);
   const [pinnedPosts, setPinnedPosts] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
@@ -36,7 +40,6 @@ export default function AssociationDetailScreen() {
   const [members, setMembers] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -72,11 +75,6 @@ export default function AssociationDetailScreen() {
     }
 
     setAssociation(assoData);
-
-    // Vérifier si l'utilisateur est le créateur/propriétaire
-    if (user && assoData.created_by === user.id) {
-      setIsOwner(true);
-    }
 
     const { data: pinnedData } = await supabase
       .from('association_posts')
@@ -406,17 +404,17 @@ export default function AssociationDetailScreen() {
 
             {/* BOUTON SUIVRE OU MODIFIER */}
             <Animated.View style={{ transform: [{ scale: followButtonScale }] }}>
-              <TouchableOpacity 
-                onPress={isOwner ? () => setEditModalVisible(true) : toggleFollow} 
-                activeOpacity={0.8} 
+              <TouchableOpacity
+                onPress={permissions.canEditAssociationInfo ? () => setEditModalVisible(true) : toggleFollow}
+                activeOpacity={0.8}
                 style={styles.followButtonWrapper}
               >
                 <LinearGradient
-                  colors={isOwner ? ['#7566d9', '#5b4fc9'] : isFollowing ? ['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)'] : ['#7566d9', '#5b4fc9']}
+                  colors={permissions.canEditAssociationInfo ? ['#7566d9', '#5b4fc9'] : isFollowing ? ['rgba(117, 102, 217, 0.3)', 'rgba(117, 102, 217, 0.15)'] : ['#7566d9', '#5b4fc9']}
                   style={styles.followButton}
                 >
                   <Text style={styles.followButtonText}>
-                    {isOwner ? 'Modifier' : isFollowing ? '✓ Suivi' : 'Suivre'}
+                    {permissions.canEditAssociationInfo ? 'Modifier' : isFollowing ? '✓ Suivi' : 'Suivre'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -494,7 +492,7 @@ export default function AssociationDetailScreen() {
                     </TouchableOpacity>
 
                     {/* BOUTON + POUR ADMIN */}
-                    {isOwner && (
+                    {permissions.canCreatePost && (
                       <TouchableOpacity
                         style={styles.addPostButton}
                         onPress={() => setCreatePostModalVisible(true)}
@@ -590,11 +588,11 @@ export default function AssociationDetailScreen() {
                 )}
 
                 {/* MEMBRES DU BUREAU */}
-                {(members.length > 0 || isOwner) && (
+                {(members.length > 0 || permissions.canManageMembers) && (
                   <View style={styles.section}>
                     <View style={styles.membersHeader}>
                       <Text style={styles.sectionTitle}>Membres du bureau</Text>
-                      {isOwner && members.length > 0 && (
+                      {permissions.canManageMembers && members.length > 0 && (
                         <TouchableOpacity
                           style={styles.addMemberSmallButton}
                           onPress={() => setAddMemberModalVisible(true)}
@@ -608,7 +606,7 @@ export default function AssociationDetailScreen() {
                       )}
                     </View>
 
-                    {members.length === 0 && isOwner ? (
+                    {members.length === 0 && permissions.canManageMembers ? (
                       <TouchableOpacity
                         style={styles.addMembersButton}
                         onPress={() => setAddMemberModalVisible(true)}
@@ -648,7 +646,7 @@ export default function AssociationDetailScreen() {
                   </View>
                 )}
 
-                {isOwner && (
+                {permissions.canEditAssociationInfo && (
                   <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Rejoindre l'association</Text>
                     <View style={[styles.recruitmentCard, association.recruitment_open && styles.recruitmentCardOpen]}>
@@ -714,9 +712,9 @@ export default function AssociationDetailScreen() {
                   <Text style={styles.eventsTitle}>
                     {showPastEvents ? 'Événements passés' : 'Événements à venir'}
                   </Text>
-                  
+
                   {/* BOUTON + POUR ADMIN */}
-                  {isOwner && (
+                  {permissions.canCreateEvent && (
                     <TouchableOpacity
                       style={styles.addPostButton}
                       onPress={() => Alert.alert('Bientôt', 'Créer un événement')}
@@ -902,7 +900,7 @@ export default function AssociationDetailScreen() {
         </ScrollView>
 
         {/* BOUTON + FLOTTANT (UNIQUEMENT ONGLET PUBLICATIONS - ADMIN SEULEMENT) */}
-        {isOwner && activeTab === 'posts' && (
+        {permissions.canCreatePost && activeTab === 'posts' && (
           <TouchableOpacity
             style={styles.floatingAddButton}
             onPress={() => setCreatePostModalVisible(true)}

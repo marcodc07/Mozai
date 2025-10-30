@@ -208,33 +208,51 @@ export default function CreateAssociationModal({
       .select()
       .single();
 
-    setLoading(false);
-
     if (assoError) {
+      setLoading(false);
       console.error('Erreur création asso:', assoError);
       Alert.alert('Erreur', assoError.message);
-    } else {
-      Alert.alert(
-        '🎉 Association créée !',
-        `${name} est maintenant en ligne. Tu peux commencer à la gérer !`,
-        [
-          {
-            text: 'Super !',
-            onPress: () => {
-              // Reset form
-              setName('');
-              setShortDescription('');
-              setLongDescription('');
-              setLogoUri(null);
-              setColor('#7566d9');
-              
-              onSuccess();
-              onClose();
-            },
-          },
-        ]
-      );
+      return;
     }
+
+    // Ajouter le créateur comme président dans association_admins
+    const { error: adminError } = await supabase
+      .from('association_admins')
+      .insert([
+        {
+          association_id: assoData.id,
+          user_id: user.id,
+          role: 'president',
+        },
+      ]);
+
+    setLoading(false);
+
+    if (adminError) {
+      console.error('Erreur ajout président:', adminError);
+      // Ne pas bloquer si erreur, l'asso est déjà créée
+    }
+
+    Alert.alert(
+      '🎉 Association créée !',
+      `${name} est maintenant en ligne. Tu peux commencer à la gérer !`,
+      [
+        {
+          text: 'Super !',
+          onPress: () => {
+            // Reset form
+            setName('');
+            setShortDescription('');
+            setLongDescription('');
+            setLogoUri(null);
+            setColor('#7566d9');
+
+            onSuccess();
+            onClose();
+          },
+        },
+      ]
+    );
   };
 
   // Générer l'initiale pour l'avatar
