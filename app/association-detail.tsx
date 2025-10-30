@@ -1,3 +1,4 @@
+import AddMemberModal from '@/components/AddMemberModal';
 import AssociationLogo from '@/components/AssociationLogo';
 import CreatePostModal from '@/components/CreatePostModal';
 import EditAssociationModal from '@/components/EditAssociationModal';
@@ -47,6 +48,7 @@ export default function AssociationDetailScreen() {
   const [userLikes, setUserLikes] = useState<Set<string>>(new Set());
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [createPostModalVisible, setCreatePostModalVisible] = useState(false);
+  const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
 
   const followButtonScale = new Animated.Value(1);
 
@@ -595,7 +597,7 @@ export default function AssociationDetailScreen() {
                       {isOwner && members.length > 0 && (
                         <TouchableOpacity
                           style={styles.addMemberSmallButton}
-                          onPress={() => Alert.alert('Bientôt', 'Ajouter un membre du bureau')}
+                          onPress={() => setAddMemberModalVisible(true)}
                           activeOpacity={0.8}
                         >
                           <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
@@ -609,7 +611,7 @@ export default function AssociationDetailScreen() {
                     {members.length === 0 && isOwner ? (
                       <TouchableOpacity
                         style={styles.addMembersButton}
-                        onPress={() => Alert.alert('Bientôt', 'Ajouter des membres du bureau')}
+                        onPress={() => setAddMemberModalVisible(true)}
                         activeOpacity={0.8}
                       >
                         <LinearGradient
@@ -965,6 +967,19 @@ export default function AssociationDetailScreen() {
           associationName={association.name}
           associationEmoji={association.logo_emoji}
           onClose={() => setCreatePostModalVisible(false)}
+          onSuccess={() => {
+            loadAssociationData();
+          }}
+        />
+      )}
+
+      {/* MODAL AJOUT MEMBRE */}
+      {association && (
+        <AddMemberModal
+          visible={addMemberModalVisible}
+          associationId={association.id}
+          existingMembersCount={members.length}
+          onClose={() => setAddMemberModalVisible(false)}
           onSuccess={() => {
             loadAssociationData();
           }}
