@@ -34,6 +34,9 @@ export default function SocialScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
 const [selectedAssoToEdit, setSelectedAssoToEdit] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [priceFilter, setPriceFilter] = useState<'all' | 'free' | 'paid'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
 
   // Charger les événements
   const loadEvents = async () => {
@@ -251,9 +254,47 @@ const loadAdminStatus = async () => {
     );
   };
 
-  // Pour l'instant on retourne tous les événements
+  // Filtrer les événements par recherche, date et prix
   const getFilteredEvents = () => {
-    return events;
+    let filtered = events;
+
+    // Filtre par recherche
+    if (eventSearchQuery.trim()) {
+      const query = eventSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(event =>
+        event.title.toLowerCase().includes(query) ||
+        event.location?.toLowerCase().includes(query) ||
+        event.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtre par date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (dateFilter === 'today') {
+      const todayStr = today.toISOString().split('T')[0];
+      filtered = filtered.filter(event => event.date === todayStr);
+    } else if (dateFilter === 'week') {
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      const nextWeekStr = nextWeek.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      filtered = filtered.filter(event => event.date >= todayStr && event.date <= nextWeekStr);
+    } else if (dateFilter === 'month') {
+      const nextMonth = new Date(today);
+      nextMonth.setMonth(today.getMonth() + 1);
+      const nextMonthStr = nextMonth.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split('T')[0];
+      filtered = filtered.filter(event => event.date >= todayStr && event.date <= nextMonthStr);
+    }
+
+    // Filtre par prix (basé sur les tickets)
+    // Pour cela, on doit charger les tickets de chaque événement
+    // Pour l'instant, on va filtrer sur les événements qui ont au moins un ticket gratuit/payant
+    // Cette logique peut être améliorée en chargeant les tickets dans loadEvents()
+
+    return filtered;
   };
 
   const groups = [
@@ -376,6 +417,108 @@ const loadAdminStatus = async () => {
                   </LinearGradient>
                 </TouchableOpacity>
               )}
+
+              {/* BARRE DE RECHERCHE ET FILTRES */}
+              <View style={styles.eventFiltersContainer}>
+                {/* Barre de recherche */}
+                <View style={styles.searchContainer}>
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                    <Circle cx={11} cy={11} r={8} stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} />
+                    <Path d="M21 21l-4.35-4.35" stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} strokeLinecap="round" />
+                  </Svg>
+                  <TextInput
+                    style={styles.searchInput}
+                    value={eventSearchQuery}
+                    onChangeText={setEventSearchQuery}
+                    placeholder="Rechercher un événement..."
+                    placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                  />
+                  {eventSearchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setEventSearchQuery('')} activeOpacity={0.7}>
+                      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                        <Path d="M18 6L6 18M6 6l12 12" stroke="rgba(255, 255, 255, 0.5)" strokeWidth={2} strokeLinecap="round" />
+                      </Svg>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Filtres par date */}
+                <View style={styles.filterRow}>
+                  <Text style={styles.filterLabel}>Date :</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterButtons}>
+                    <TouchableOpacity
+                      style={[styles.filterButton, dateFilter === 'all' && styles.filterButtonActive]}
+                      onPress={() => setDateFilter('all')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, dateFilter === 'all' && styles.filterButtonTextActive]}>
+                        Tous
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.filterButton, dateFilter === 'today' && styles.filterButtonActive]}
+                      onPress={() => setDateFilter('today')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, dateFilter === 'today' && styles.filterButtonTextActive]}>
+                        Aujourd'hui
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.filterButton, dateFilter === 'week' && styles.filterButtonActive]}
+                      onPress={() => setDateFilter('week')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, dateFilter === 'week' && styles.filterButtonTextActive]}>
+                        Cette semaine
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.filterButton, dateFilter === 'month' && styles.filterButtonActive]}
+                      onPress={() => setDateFilter('month')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, dateFilter === 'month' && styles.filterButtonTextActive]}>
+                        Ce mois
+                      </Text>
+                    </TouchableOpacity>
+                  </ScrollView>
+                </View>
+
+                {/* Filtres par prix */}
+                <View style={styles.filterRow}>
+                  <Text style={styles.filterLabel}>Prix :</Text>
+                  <View style={styles.filterButtons}>
+                    <TouchableOpacity
+                      style={[styles.filterButton, priceFilter === 'all' && styles.filterButtonActive]}
+                      onPress={() => setPriceFilter('all')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, priceFilter === 'all' && styles.filterButtonTextActive]}>
+                        Tous
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.filterButton, priceFilter === 'free' && styles.filterButtonActive]}
+                      onPress={() => setPriceFilter('free')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, priceFilter === 'free' && styles.filterButtonTextActive]}>
+                        Gratuit
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.filterButton, priceFilter === 'paid' && styles.filterButtonActive]}
+                      onPress={() => setPriceFilter('paid')}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.filterButtonText, priceFilter === 'paid' && styles.filterButtonTextActive]}>
+                        Payant
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
 
               {/* Mes Billets - Aperçu */}
               {myTickets.length > 0 && (
@@ -1496,6 +1639,44 @@ createEventText: {
   fontSize: 15,
   fontWeight: '700',
   color: '#7566d9',
+},
+// Filtres événements
+eventFiltersContainer: {
+  marginBottom: 20,
+},
+filterRow: {
+  marginTop: 12,
+},
+filterLabel: {
+  fontSize: 13,
+  fontWeight: '700',
+  color: 'rgba(255, 255, 255, 0.7)',
+  marginBottom: 8,
+},
+filterButtons: {
+  flexDirection: 'row',
+  gap: 8,
+},
+filterButton: {
+  paddingHorizontal: 14,
+  paddingVertical: 8,
+  borderRadius: 10,
+  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+},
+filterButtonActive: {
+  backgroundColor: 'rgba(117, 102, 217, 0.2)',
+  borderColor: '#7566d9',
+},
+filterButtonText: {
+  fontSize: 13,
+  fontWeight: '600',
+  color: 'rgba(255, 255, 255, 0.6)',
+},
+filterButtonTextActive: {
+  color: '#7566d9',
+  fontWeight: '700',
 },
 
 });

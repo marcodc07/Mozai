@@ -1193,7 +1193,8 @@ export default function AssociationDetailScreen() {
           post={selectedPostForActions}
           onClose={() => {
             setEditPostModalVisible(false);
-            setSelectedPostForActions(null);
+            // Ne pas réinitialiser selectedPostForActions ici pour éviter de perdre les données
+            setTimeout(() => setSelectedPostForActions(null), 300);
           }}
           onSuccess={() => {
             loadAssociationData();
@@ -1263,7 +1264,8 @@ export default function AssociationDetailScreen() {
           member={selectedMemberForActions}
           onClose={() => {
             setEditMemberModalVisible(false);
-            setSelectedMemberForActions(null);
+            // Ne pas réinitialiser selectedMemberForActions ici pour éviter de perdre les données
+            setTimeout(() => setSelectedMemberForActions(null), 300);
           }}
           onSuccess={() => {
             loadAssociationData();
