@@ -1176,7 +1176,7 @@ export default function AssociationDetailScreen() {
           canPin={permissions.canPinPost}
           onClose={() => {
             setPostActionsSheetVisible(false);
-            setSelectedPostForActions(null);
+            // Ne PAS réinitialiser selectedPostForActions ici car il est utilisé par EditPostModal
           }}
           onEdit={() => {
             setEditPostModalVisible(true);
@@ -1193,8 +1193,7 @@ export default function AssociationDetailScreen() {
           post={selectedPostForActions}
           onClose={() => {
             setEditPostModalVisible(false);
-            // Ne pas réinitialiser selectedPostForActions ici pour éviter de perdre les données
-            setTimeout(() => setSelectedPostForActions(null), 300);
+            setSelectedPostForActions(null);
           }}
           onSuccess={() => {
             loadAssociationData();
@@ -1248,7 +1247,7 @@ export default function AssociationDetailScreen() {
           canRemove={permissions.canManageMembers}
           onClose={() => {
             setMemberActionsSheetVisible(false);
-            setSelectedMemberForActions(null);
+            // Ne PAS réinitialiser selectedMemberForActions ici car il est utilisé par EditMemberModal
           }}
           onEdit={() => {
             setEditMemberModalVisible(true);
@@ -1264,8 +1263,7 @@ export default function AssociationDetailScreen() {
           member={selectedMemberForActions}
           onClose={() => {
             setEditMemberModalVisible(false);
-            // Ne pas réinitialiser selectedMemberForActions ici pour éviter de perdre les données
-            setTimeout(() => setSelectedMemberForActions(null), 300);
+            setSelectedMemberForActions(null);
           }}
           onSuccess={() => {
             loadAssociationData();
